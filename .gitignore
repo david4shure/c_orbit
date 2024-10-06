@@ -10,3 +10,4 @@ _deps/
 cmake_install.cmake
 compile_commands.json
 raylib-game-template/
+.cache/*

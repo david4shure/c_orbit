@@ -108,13 +108,17 @@ float stump_c(float z) {
     }
 }
 
-float stump_s(float z) {
-    if (z > 0) {
-        return (sqrt(z) - sin(sqrt(z)))/powf((sqrt(z)),3.0);
-    } else if (z < 0) {
-        return (sinh(sqrt(-z)) - sqrt(-z))/pow(sqrt(-z),3);
+float stump_s(float x, float min, float max) {
+
+}
+
+float clampf(float x, float min, float max) {
+    if (x < min) {
+        return min;
+    } else if (x > max) {
+        return max;
     } else {
-        return 1.0/6.0;
+        return x;
     }
 }
 

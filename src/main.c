@@ -52,19 +52,22 @@ void DrawGridOfColor(int slices, float spacing,Color color)
         }
     rlEnd();
 }
+
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
 int main(void) {
-    Vector3 r = { 0, 1, 1 };
-    Vector3 v = { 1, 1, 0 };
-    OrbitalState state = {r,v};
-    OrbitalElements eles = orb_elems_from_rv(state, 0.55243);
+    /* Vector3 r = { 0, 1, 1 }; */
+    /* Vector3 v = { 1, 1, 0 }; */
+    /* OrbitalState state = {r,v}; */
+    /* OrbitalElements eles = orb_elems_from_rv(state, 0.55243); */
 
-    printf("a = %.2f\n",eles.a);
-    printf("e = %.2f\n",eles.e);
-    printf("E = %.2f\n",eles.E);
-    // Initialization
+/*     printf("a = %.2f\n",eles.a); */
+/*     printf("e = %.2f\n",eles.e); */
+/*     printf("E = %.2f\n",eles.E); */
+/*     // Initialization */
+    float eta = 1e-10;
+
     //--------------------------------------------------------------------------------------
     const int screenWidth = 1500;
     const int screenHeight = 1000;
@@ -81,6 +84,11 @@ int main(void) {
 
     int cameraMode = CAMERA_FREE;
     float time = 0.0;
+
+    // Spherical Camera coordinates
+    float r = 1000.0;
+    float theta = 0.0;
+    float phi = 0.0;
 
     Model model = LoadModelFromMesh(GenMeshSphere(25.0, 80, 80));
 
@@ -111,7 +119,21 @@ int main(void) {
         // Update camera computes movement internally depending on the camera mode
         // Some default standard keyboard/mouse inputs are hardcoded to simplify use
         // For advance camera controls, it's reecommended to compute camera movement manually
-        UpdateCamera(&camera, cameraMode);                  // Update camera
+        UpdateCamera(&camera, CAMERA_ORBITAL);
+
+        Vector2 mousePositionDelta = GetMouseDelta();
+        float mouseWheelMove = GetMouseWheelMove();
+
+        r -= mouseWheelMove * 0.001;
+
+        float r_delta = mouseWheelMove * 0.01;
+        printf("R_delta=%.2f\n",r_delta);
+        r -= r_delta * r;
+        theta -= mousePositionDelta.x*0.005f;
+        phi += mousePositionDelta.y*0.005f;
+
+        phi = clampf(phi,-PI/2+eta,PI/2.0-eta);
+        // theta = clampf(theta,0+eta, 2*PI-eta);
 
         // Draw
         //----------------------------------------------------------------------------------
@@ -146,6 +168,10 @@ int main(void) {
                         prev_far = far;
                     }
                 }
+
+                camera.position.x = r*sin(theta)*cos(phi);
+                camera.position.y = r*sin(phi);
+                camera.position.z = r*cos(theta)*cos(phi);
 
                 DrawModel(model,sphere_pos,1.0,SKYBLUE);
                 DrawGridOfColor(250,500.0,GREEN); // Draw ground

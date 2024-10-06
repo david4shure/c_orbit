@@ -30,5 +30,7 @@ float mean_anom(float M_naught, float t, float t_naught, float T);
 float solve_ecc_anom_newton(float e, float M);
 float ecc_anom_to_true_anom(float E);
 
+float clampf(float x, float min, float max);
+
 OrbitalElements orb_elems_from_rv(OrbitalState rv, float μ);
 OrbitalState rv_from_orb_elems(OrbitalElements elems);
