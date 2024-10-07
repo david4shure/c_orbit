@@ -58,30 +58,115 @@ float true_anomaly_to_eccentric_anomaly(float θ, float e) {
     return E;
 }
 
+float ecc_anom_to_true_anom(float e, float E) {
+    float numerator = 1 + e;
+    float denomenator = 1 - e;
+    
+    float v = 2 * atan(sqrt(numerator/denomenator) * tan(E/2.0));
+
+    return v;
+}
+
 float ecc_anom_to_mean_anom(float E, float e) {
     return E - e * sin(E);
 }
 
-float kepler_E_newt(float e, float M) {
-    float error = 1e-8;
+/* float kepler_E_newt(float e, float M, int max_iters) { */
+/*     float error = 1e-8; */
 
-    float E = 0.0;
+/*     float E = 0.0; */
 
-    if (M < PI) {
-        E = M + e/2;
+/*     if (M < PI) { */
+/*         E = M + e; */
+/*     } else { */
+/*         E = M - e; */
+/*     } */
+
+/*     printf("inital E = %.2f\n",E); */
+
+/*     float ratio = 1.0; */
+/*     int iters = 0; */
+
+/*     while(fabs(ratio) > error) { */
+/*         printf("ratio = %.2f, E = %.2f\n",ratio,E); */
+/*         printf(".\n"); */
+/*         ratio = (E - e*sin(E) - M)/(1 - e * cos(E)); */
+/*         E = E - ratio; */
+/*         iters++; */
+
+/*         if (iters > max_iters) { */
+/*             printf("Breaking on max iters...\n"); */
+/*             break; */
+/*         } */
+/*     } */
+
+/*     return E; */
+/* } */
+
+/*         let eta = 1e-15_f64; */
+/*         let e_naught; */
+
+/*         if (-1. * PI64 < mean_anomaly && mean_anomaly < 0.) || (mean_anomaly > PI64) { */
+/*             e_naught = mean_anomaly - self.eccentricity; */
+/*         } else { */
+/*             e_naught = mean_anomaly + self.eccentricity; */
+/*         } */
+
+/*         let mut e_n = e_naught; */
+/*         let mut delta = eta + 1.; */
+/*         let mut count = 0; */
+/*         let mut e_np1 = 0.; */
+
+/*         while delta > eta { */
+/*             e_np1 = e_n */
+/*                 + (mean_anomaly - e_n + self.eccentricity * e_n.sin()) */
+/*                     / (1. - self.eccentricity * e_n.cos()); */
+/*             delta = (e_np1 - e_n).abs(); */
+/*             e_n = e_np1; */
+/*             count += 1; */
+
+/*             if count > 20 { */
+/*                 println!("Something bad happened, couldn't converge for eccentric anomaly."); */
+/*                 return 0. as f64; */
+/*             } */
+/*         } */
+        
+/*         e_np1 */
+
+
+float kepler_E_newt(float e, float M, int max_iters) {
+    float eta = 1e-50;
+    float e_naught;
+
+    if ((-1 * PI < M && M < 0) || (M > PI)) {
+        e_naught = M - e;
     } else {
-        E = M - e/2;
+        e_naught = M + e;
     }
 
-    float ratio = 1.0;
+    float e_n = e_naught;
+    float delta = eta + 1;
+    int count = 0;
+    float e_np1 = 0;
 
-    while(fabs(ratio) > error) {
-        ratio = (E - e*sin(E) - M)/(1 - e * cos(E));
-        E = E - ratio;
+    while (delta > eta) {
+        e_np1 = e_n
+                + (M - e_n + e * sin(e_n))
+                    / (1. - e * cos(e_n));
+        delta = fabsf(e_np1 - e_n);
+        e_n = e_np1;
+        count++;
+
+        if (count > max_iters) {
+            break;
+        }
     }
 
-    return E;
+    printf("Converged in %d iters\n",count);
+
+    return e_np1;
 }
+
 
 float kepler_H_newt(float e, float M) {
     float error = 1e-8;
@@ -109,7 +194,7 @@ float stump_c(float z) {
 }
 
 float stump_s(float x, float min, float max) {
-
+    
 }
 
 float clampf(float x, float min, float max) {
@@ -119,7 +204,11 @@ float clampf(float x, float min, float max) {
         return max;
     } else {
         return x;
-    }
+    }   
+}
+
+float distance(float e, float a, float E) {
+    return a * (1. - e * cos(E));
 }
 
 OrbitalElements orb_elems_from_rv(OrbitalState rv, float μ) {

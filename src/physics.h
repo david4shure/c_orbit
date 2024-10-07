@@ -4,7 +4,6 @@
 #include <raymath.h>
 
 // We do everything in radians here
-
 typedef struct OrbitalElements {
     float a; // semi-major axis
     float e; // eccentricity
@@ -28,9 +27,16 @@ float mean_anom(float M_naught, float t, float t_naught, float T);
 
 // Solves for the eccentric anomaly from the following eq.
 float solve_ecc_anom_newton(float e, float M);
-float ecc_anom_to_true_anom(float E);
 
-float clampf(float x, float min, float max);
+float ecc_anom_to_true_anom(float e, float E);
 
+float distance(float e, float a, float E);
+
+// Solves for the true anomaly from eccentric anomaly
+float kepler_E_newt(float e, float M, int max_iters);
+
+// Gets orbital elements in struct form from R (position) V (velcoity) vectors.
 OrbitalElements orb_elems_from_rv(OrbitalState rv, float μ);
+
+// Gets R (position), V (velocity) vectors from OrbitalElements
 OrbitalState rv_from_orb_elems(OrbitalElements elems);

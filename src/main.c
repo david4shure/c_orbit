@@ -11,47 +11,17 @@
 *
 ********************************************************************************************/
 
+#include "time.h"
+#include "camera.h"
 #include "raylib.h"
 #include "raymath.h"
 #include "rcamera.h"
-#include "math.h"
 #include "rlgl.h"
 #include <stdio.h>
 #include "physics.h"
+#include "rlutil.h"
 
 #define MAX_COLUMNS 20
-
-// Draw a grid centered at (0, 0, 0)
-void DrawGridOfColor(int slices, float spacing,Color color)
-{
-    int halfSlices = slices/2;
-
-    rlBegin(RL_LINES);
-        for (int i = -halfSlices; i <= halfSlices; i++)
-        {
-            if (i == 0)
-            {
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-            }
-            else
-            {
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-            }
-
-            rlVertex3f((float)i*spacing, 0.0f, (float)-halfSlices*spacing);
-            rlVertex3f((float)i*spacing, 0.0f, (float)halfSlices*spacing);
-
-            rlVertex3f((float)-halfSlices*spacing, 0.0f, (float)i*spacing);
-            rlVertex3f((float)halfSlices*spacing, 0.0f, (float)i*spacing);
-        }
-    rlEnd();
-}
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -62,10 +32,21 @@ int main(void) {
     /* OrbitalState state = {r,v}; */
     /* OrbitalElements eles = orb_elems_from_rv(state, 0.55243); */
 
-/*     printf("a = %.2f\n",eles.a); */
-/*     printf("e = %.2f\n",eles.e); */
-/*     printf("E = %.2f\n",eles.E); */
 /*     // Initialization */
+    Vector3 R = {-6045, -3490, 2500};
+    Vector3 V = {-3.457, 6.618, 2.533};
+
+
+    OrbitalState state = {R,V};
+    OrbitalElements eles = orb_elems_from_rv(state, 0.55243);
+    PhysicsTimeClock clock = { .tick_interval_seconds = 86400, .mode = Elapsing, .scale = 500.0, .delta_seconds = 0.0 };
+
+    float M_naught = 2.35585;
+    float t_naught = 0.0;
+    float T = 2360591.0;
+    printf("a = %.2f\n",eles.a);
+    printf("e = %.2f\n",eles.e);
+    printf("E = %.2f\n",eles.E);
     float eta = 1e-10;
 
     //--------------------------------------------------------------------------------------
@@ -116,23 +97,31 @@ int main(void) {
     {
         time = GetTime();
 
+        UpdatePhysicsClock(&clock, (float)time);
+
+        float M = mean_anom(M_naught,clock.clock_seconds, t_naught,T);
+
+        if (M > 2 * PI) {
+            M = M - 2 * PI;
+        }
+
+        float e = 0.5;
+
+        float E = kepler_E_newt(e, M, 50);
+        float TA = ecc_anom_to_true_anom(e, E);
+        float dist = distance(e,eles.a,E);
+
+        float x = dist * cos(TA);
+        float y = dist * sin(TA);
+
+
+        printf("M = %.2f, E = %.2f, TA = %2f\n",M,E,TA);
+
         // Update camera computes movement internally depending on the camera mode
         // Some default standard keyboard/mouse inputs are hardcoded to simplify use
         // For advance camera controls, it's reecommended to compute camera movement manually
         UpdateCamera(&camera, CAMERA_ORBITAL);
 
-        Vector2 mousePositionDelta = GetMouseDelta();
-        float mouseWheelMove = GetMouseWheelMove();
-
-        r -= mouseWheelMove * 0.001;
-
-        float r_delta = mouseWheelMove * 0.01;
-        printf("R_delta=%.2f\n",r_delta);
-        r -= r_delta * r;
-        theta -= mousePositionDelta.x*0.005f;
-        phi += mousePositionDelta.y*0.005f;
-
-        phi = clampf(phi,-PI/2+eta,PI/2.0-eta);
         // theta = clampf(theta,0+eta, 2*PI-eta);
 
         // Draw
@@ -150,11 +139,11 @@ int main(void) {
 
                 float lod = 1.0;
 
-
                 if (IsKeyDown(KEY_F1)) {
                     prev_far = far;
                     far += 50;
                 }
+
                 if (IsKeyDown(KEY_F2)) {
                     prev_far = far;
                     far -= 50;
@@ -169,9 +158,7 @@ int main(void) {
                     }
                 }
 
-                camera.position.x = r*sin(theta)*cos(phi);
-                camera.position.y = r*sin(phi);
-                camera.position.z = r*cos(theta)*cos(phi);
+                SphericalCameraSystem(&r, &theta, &phi, &camera);
 
                 DrawModel(model,sphere_pos,1.0,SKYBLUE);
                 DrawGridOfColor(250,500.0,GREEN); // Draw ground
