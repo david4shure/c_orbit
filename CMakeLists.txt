@@ -18,12 +18,26 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(raylib)
 
+# Dependencies
+set(RAYGUIVERSION 4.0)
+
+FetchContent_Declare(
+    raygui
+    DOWNLOAD_EXTRACT_TIMESTAMP OFF
+    URL https://github.com/raysan5/raygui/archive/refs/tags/${RAYGUIVERSION}.tar.gz
+    FIND_PACKAGE_ARGS
+)
+
+FetchContent_MakeAvailable(raygui)
+FetchContent_MakeAvailable(raylib)
+
 # Our Project
 add_executable(${PROJECT_NAME})
 add_subdirectory(src)
 
 set_target_properties(${PROJECT_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${PROJECT_NAME})
+
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY $<TARGET_FILE_DIR:${PROJECT_NAME}>)
 
@@ -43,6 +57,9 @@ endif()
 
 #set(raylib_VERBOSE 1)
 target_link_libraries(${PROJECT_NAME} raylib)
+
+# Add the include directories for raylib and raygui explicitly.
+target_include_directories(${PROJECT_NAME} PRIVATE ${raylib_SOURCE_DIR} ${raygui_SOURCE_DIR}/src)
 
 # Web Configurations
 if ("${PLATFORM}" STREQUAL "Web")

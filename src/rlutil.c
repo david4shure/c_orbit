@@ -9,20 +9,10 @@ void DrawGridOfColor(int slices, float spacing,Color color)
     rlBegin(RL_LINES);
         for (int i = -halfSlices; i <= halfSlices; i++)
         {
-            if (i == 0)
-            {
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-            }
-            else
-            {
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-                rlColor3f(color.r*255,color.g*255,color.b*255);
-            }
+            rlColor3f(color.r*color.a,color.g*color.a,color.b*color.a);
+            rlColor3f(color.r*color.a,color.g*color.a,color.b*color.a);
+            rlColor3f(color.r*color.a,color.g*color.a,color.b*color.a);
+            rlColor3f(color.r*color.a,color.g*color.a,color.b*color.a);
 
             rlVertex3f((float)i*spacing, 0.0f, (float)-halfSlices*spacing);
             rlVertex3f((float)i*spacing, 0.0f, (float)halfSlices*spacing);
