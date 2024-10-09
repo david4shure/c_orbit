@@ -68,11 +68,11 @@ float solve_kepler_eq_ellipse(float eccentricity, float mean_anomaly, int max_it
         count++;
 
         if (count > max_iters) {
+            printf("Failed to converge after %d iters\n",max_iters);
             break;
         }
     }
 
-    printf("Converged in %d iters\n",count);
 
     return e_np1;
 }
