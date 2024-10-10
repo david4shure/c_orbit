@@ -3,6 +3,12 @@
 #include "rlutil.h"
 #include "math.h"
 
+#ifdef __APPLE__
+#define SCROLL_FACTOR 0.01
+#else
+#define SCROLL_FACTOR 0.1
+#endif
+
 #define CAMERA_ETA 0.000001
 
 void SphericalCameraSystem(float *r, float *theta, float *phi, Camera3D *camera) {
@@ -11,7 +17,7 @@ void SphericalCameraSystem(float *r, float *theta, float *phi, Camera3D *camera)
 
     *r -= mouseWheelMove * 0.001;
 
-    float r_delta = mouseWheelMove * 0.01;
+    float r_delta = mouseWheelMove * SCROLL_FACTOR;
     
     *r -= r_delta * *r;
     *theta -= mousePositionDelta.x*0.005f;

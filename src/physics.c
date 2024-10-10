@@ -257,13 +257,87 @@ void print_orbital_elements(OrbitalElements elems) {
 /* } */
 
 Vector3 vector_from_physical_to_world(Vector3 vec) {
-    Vector3 transformed = {vec.x * PHYSICS_COORDS_TO_RENDER_COORDS, vec.y * PHYSICS_COORDS_TO_RENDER_COORDS, vec.z * PHYSICS_COORDS_TO_RENDER_COORDS };
+    Vector3 transformed = {vec.x * PHYSICS_COORDS_TO_RENDER_COORDS, vec.z * PHYSICS_COORDS_TO_RENDER_COORDS, vec.y * PHYSICS_COORDS_TO_RENDER_COORDS };
 
     return transformed;
 }
 
 Vector3 vector_from_world_to_physical(Vector3 vec) {
-    Vector3 transformed = {vec.x * RENDER_COORDS_TO_PHYSICAL_COORDS, vec.y * RENDER_COORDS_TO_PHYSICAL_COORDS, vec.z * RENDER_COORDS_TO_PHYSICAL_COORDS };
+    Vector3 transformed = {vec.x * RENDER_COORDS_TO_PHYSICAL_COORDS, vec.z * RENDER_COORDS_TO_PHYSICAL_COORDS, vec.y * RENDER_COORDS_TO_PHYSICAL_COORDS };
 
     return transformed;
 }
+
+Vector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, float M_naught, float t_naught, float t) {
+    float mean_anomaly = mean_anom(M_naught,t,t_naught, elems.period);
+
+    // NOTE: If your mean anomaly goes higher than 2 PI
+    // You will fail to converge when you solve keplers eq
+    // for certain values of mean_anomaly
+    if (mean_anomaly > 2 * PI) {
+        mean_anomaly = mean_anomaly - 2 * PI;
+    }
+
+    // Solve keplers eq MA -> E -> TA -> DIST -> (x,y,z)
+    float eccentric_anomaly = solve_kepler_eq_ellipse(elems.eccentricity, mean_anomaly, 50);
+    float true_anomaly = ecc_anom_to_true_anom(elems.eccentricity, eccentric_anomaly);
+    float r = distance_sphere_coords(elems.eccentricity,elems.semimajor_axis,eccentric_anomaly);
+
+    // Spherical coords -> carteesian
+    float x = r * cos(true_anomaly);
+    float y = r * sin(true_anomaly);
+
+    // Return our handy Vector2
+    return (Vector2){.x=x,.y=y};
+}
+
+
+Vector3 solve_kepler_ellipse_inertial(OrbitalElements elems, float M_naught, float t_naught, float t) {
+    Vector2 perifocal_coords = solve_kepler_ellipse_perifocal(elems, M_naught, t_naught, t);
+
+    // Perform a single combined linear transformation on these perifocal 
+    // coords to convert to inertial 3d space
+    // cos Ω cos ω − sin Ω sin ω cos i 
+    float i_1_1 = cos(elems.long_of_asc_node) * cos(elems.arg_of_periapsis) - sin(elems.long_of_asc_node) * sin(elems.arg_of_periapsis) * cos(elems.inclination);
+    // − cos Ω sin ω − sin Ω cos ω cos i
+    float i_1_2  = - cos(elems.long_of_asc_node) * sin(elems.arg_of_periapsis) - sin(elems.long_of_asc_node) * cos(elems.arg_of_periapsis) * cos(elems.inclination);
+    // sin Ω sin i
+    float i_1_3 = sin(elems.long_of_asc_node) * sin(elems.inclination);
+
+    // sin Ω cos ω + cos Ω sin ω cos i
+    float i_2_1 = sin(elems.long_of_asc_node) * cos(elems.arg_of_periapsis) + cos(elems.long_of_asc_node) * sin(elems.arg_of_periapsis) * cos(elems.inclination);
+    // − sin Ω sin ω + cos Ω cos ω cos i
+    float i_2_2 = - sin(elems.long_of_asc_node) * sin(elems.arg_of_periapsis) + cos(elems.long_of_asc_node) * cos(elems.arg_of_periapsis) * cos(elems.inclination);
+    // − cos Ω sin i
+    float i_2_3 = - cos(elems.long_of_asc_node) * sin(elems.inclination);
+
+    // sin ω sin i
+    float i_3_1 = sin(elems.arg_of_periapsis) * sin(elems.inclination);
+    // cos ω sin i
+    float i_3_2 = cos(elems.arg_of_periapsis) * sin(elems.inclination);
+    // cos i
+    float i_3_3 = cos(elems.inclination);
+
+    // Create 3x3 matrix
+    Matrix mat = {
+        i_1_1, i_1_2, i_1_3, 0,
+        i_2_1, i_2_2, i_2_3, 0,
+        i_3_1, i_3_2, i_3_3, 0,
+        0,     0,     0,     1,
+    };
+
+    // Transform the point and return
+    return Vector3Transform((Vector3){.x = perifocal_coords.x, .y = perifocal_coords.y, .z = 0.0}, mat);
+}              
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               
+               

@@ -17,13 +17,13 @@ void* darray_create(void* arr, int capacity) {
 // Given capacity and size, gives us pointer to the void* array
 void* darray_init(int capacity, int stride) {
     // Malloc 32 bits cap, 32 bits size, 32 bits stride + 5 * stride bytes for array
-    void* ptr = RL_MALLOC(sizeof(darray_header) + stride * DARRAY_DEFAULT_CAPACITY);
+    void* ptr = RL_MALLOC(sizeof(darray_header) + stride * capacity);
 
     darray_header* header = (darray_header*) ptr;
 
     header->size = 0;
     header->stride = stride;
-    header->capacity = DARRAY_DEFAULT_CAPACITY;
+    header->capacity = capacity;
 
     // Copy data into memory from our struct above
     //memcpy(ptr,header,sizeof(darray_header));

@@ -3,7 +3,6 @@
 #define RENDER_COORDS_TO_PHYSICAL_COORDS 100
 #define PHYSICS_COORDS_TO_RENDER_COORDS 0.01
 
-#include <stdio.h>
 #include <raymath.h>
 
 // We do everything in radians here
@@ -52,6 +51,14 @@ float distance_sphere_coords(float e, float a, float E);
 // Gets orbital elements in struct form from R (position) V (velcoity) vectors.
 OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ);
 
+// Solves keplers equation for the carteesian coords in inertial frame
+// with proper rotations applied (inclination, arg periapsis, long asc, etc)
+Vector3 solve_kepler_ellipse_inertial(OrbitalElements elems, float M_naught, float t_naught, float t);
+
+// Solves keplers equation for the carteesian coords in perifocal frame 
+// Vector2 because only x and y are relevant for perifocal frame
+Vector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, float M_naught, float t_naught, float t); 
+
 // Gets R (position), V (velocity) vectors from OrbitalElements
 PhysicalState rv_from_orb_elems_ellipse(OrbitalElements elems);
 
@@ -61,4 +68,5 @@ Vector3 vector_from_world_to_physical(Vector3 vec);
 // Converts a Vec3 in physical coords World render coords
 Vector3 vector_from_physical_to_world(Vector3 vec);
 
+// Prints orbital elements duh
 void print_orbital_elements(OrbitalElements e);
