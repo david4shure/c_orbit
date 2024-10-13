@@ -1,6 +1,6 @@
 #include "camera.h"
 #include "raylib.h"
-#include "rlutil.h"
+#include "utils/rlutil.h"
 #include "math.h"
 
 #ifdef __APPLE__

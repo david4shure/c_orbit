@@ -1,8 +1,5 @@
 #pragma once
 
-#define RENDER_COORDS_TO_PHYSICAL_COORDS 100
-#define PHYSICS_COORDS_TO_RENDER_COORDS 0.01
-
 #include <raymath.h>
 
 // We do everything in radians here

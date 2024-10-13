@@ -6,10 +6,10 @@
 
 void* darray_create(void* arr, int capacity) {
     // Parse out darrray_header from ptr
-    darray_header* header = (darray_header*)((char*)arr - sizeof(darray_header));
+    darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
     header = RL_REALLOC(header,sizeof(darray_header) + (header->stride * capacity));
 
-    arr = ((char*)header + sizeof(darray_header));
+    arr = ((uint8_t*)header + sizeof(darray_header));
 
     return arr;
 }
@@ -28,7 +28,7 @@ void* darray_init(int capacity, int stride) {
     // Copy data into memory from our struct above
     //memcpy(ptr,header,sizeof(darray_header));
 
-    void* arr = ((char*)ptr) + sizeof(darray_header);
+    void* arr = ((uint8_t*)ptr) + sizeof(darray_header);
 
     // Make ptr point to the beginning of the arr portion of memory rather than the header
     return arr;
@@ -37,17 +37,16 @@ void* darray_init(int capacity, int stride) {
 // Push element onto darray
 void* darray_push(void* arr, void* item) {
     // Parse out darrray_header from ptr
-    darray_header* header = (darray_header*)((char*)arr - sizeof(darray_header));
+    darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (header->size >= header->capacity) {
-        printf("Reallocating new array...\n");
         // Increase capacity
         header->capacity *= DARRAY_GROWTH_FACTOR;
         // Realloc new array + header
         arr = darray_create(arr,header->capacity);
-        header = (darray_header*)((char*)arr - sizeof(darray_header));
+        header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
     }
-    void* ptr_to_insert = ((char*)arr) + header->stride * header->size;
+    void* ptr_to_insert = ((uint8_t*)arr) + header->stride * header->size;
 
     // Copy the data into our memory
     memcpy(ptr_to_insert, item, header->stride);
@@ -82,7 +81,7 @@ void* darray_insert(void* arr, void* item, int index) {
 // Removes item from end of arr
 void* darray_pop(void* arr) {
     // Parse out darrray_header from ptr
-    darray_header* header = (darray_header*)((char*)arr - sizeof(darray_header));
+    darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (header->size == 0) {
         printf("Tried to pop from empty arr");
@@ -105,7 +104,7 @@ void* darray_pop(void* arr) {
 // memcpy(&2, &3, 6 - 3 * stride);
 void* darray_pop_at(void* arr, int index) {
     // Parse out darrray_header from ptr
-    darray_header* header = (darray_header*)((char*)arr - sizeof(darray_header));
+    darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (header->size == 0) {
         printf("Tried to pop from empty arr\n");
@@ -120,8 +119,8 @@ void* darray_pop_at(void* arr, int index) {
     // if index is zero, 5 - 0 + 1, = 6
     size_t size_to_copy = (header->size - 1 - index) * header->stride;
 
-    void* dst = ((char*)arr) + (header->stride * index);
-    void* src = ((char*)arr) + (header->stride * (index + 1));
+    void* dst = ((uint8_t*)arr) + (header->stride * index);
+    void* src = ((uint8_t*)arr) + (header->stride * (index + 1));
 
     memcpy(dst, src, size_to_copy);
 
@@ -138,7 +137,7 @@ void* darray_pop_at(void* arr, int index) {
 // memcpy(&10, &2, header->stride);
 void* darray_insert_at(void* arr, void* item, int index) {
     // Parse out darrray_header from ptr
-    darray_header* header = (darray_header*)((char*)arr - sizeof(darray_header));
+    darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (index < 0) {
         printf("Tried to insert out of bound\n");
@@ -157,8 +156,8 @@ void* darray_insert_at(void* arr, void* item, int index) {
     // if index is zero, 5 - 0 + 1, = 6
     size_t size_to_copy = (header->size - index) * header->stride;
 
-    void* dst = ((char*)arr) + (header->stride * (index + 1));
-    void* src = ((char*)arr) + (header->stride * index);
+    void* dst = ((uint8_t*)arr) + (header->stride * (index + 1));
+    void* src = ((uint8_t*)arr) + (header->stride * index);
 
     // Shift elements to the right by size_to_copy bytes
     memcpy(dst, src, size_to_copy);
@@ -174,7 +173,7 @@ void* darray_insert_at(void* arr, void* item, int index) {
 // free up our memory starting at header ptr
 void darray_free(void* arr) {
     // Parse out darrray_header from ptr
-    darray_header* header = (darray_header*)((char*)arr - sizeof(darray_header));
+    darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     printf("free(%p)\n",arr);
 
@@ -184,14 +183,14 @@ void darray_free(void* arr) {
 // Insert element to array at index
 void* darray_get(void* arr, int index) {
     // Parse out darrray_header from ptr
-    darray_header* header = (darray_header*)((char*)arr - sizeof(darray_header));
+    darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (index > header->size-1 || index < 0) {
         printf("Getting beyond bounds\n");
         return NULL;
     }
 
-    void* ptr = ((char*)arr) + (index * header->stride);
+    void* ptr = ((uint8_t*)arr) + (index * header->stride);
 
     return ptr;
 }
@@ -199,14 +198,14 @@ void* darray_get(void* arr, int index) {
 // Set item in darray at index
 void darray_set(void* arr, void* item, int index) {
     // Parse out darrray_header from ptr
-    darray_header* header = (darray_header*)((char*)arr - sizeof(darray_header));
+    darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (index > header->size-1 || index < 0) {
         printf("Setting beyond bounds\n");
         return;
     }
 
-    void* ptr = ((char*)arr) + (index * header->stride);
+    void* ptr = ((uint8_t*)arr) + (index * header->stride);
 
     memcpy(ptr,item,header->stride);
 }
@@ -214,7 +213,7 @@ void darray_set(void* arr, void* item, int index) {
 // Get length of darray
 int darray_length(void* arr) {
     // Parse out darrray_header from ptr
-    darray_header* header = (darray_header*)((char*)arr - sizeof(darray_header));
+    darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     return header->size;
 }

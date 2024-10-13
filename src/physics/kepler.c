@@ -1,8 +1,9 @@
-#include "physics.h"
+#include "kepler.h"
 #include "math.h"
 #include "raymath.h"
 #include <math.h>
 #include <stdio.h>
+#include "constants.h"
 
 float mean_anom(float mean_anomaly_at_epoch, float time, float time_at_epoch, float orbital_period) {
     // First calculate mean motion
@@ -257,13 +258,13 @@ void print_orbital_elements(OrbitalElements elems) {
 /* } */
 
 Vector3 vector_from_physical_to_world(Vector3 vec) {
-    Vector3 transformed = {vec.x * PHYSICS_COORDS_TO_RENDER_COORDS, vec.z * PHYSICS_COORDS_TO_RENDER_COORDS, vec.y * PHYSICS_COORDS_TO_RENDER_COORDS };
+    Vector3 transformed = {vec.x * KM_TO_RENDER_UNITS, vec.z * KM_TO_RENDER_UNITS, vec.y * KM_TO_RENDER_UNITS };
 
     return transformed;
 }
 
 Vector3 vector_from_world_to_physical(Vector3 vec) {
-    Vector3 transformed = {vec.x * RENDER_COORDS_TO_PHYSICAL_COORDS, vec.z * RENDER_COORDS_TO_PHYSICAL_COORDS, vec.y * RENDER_COORDS_TO_PHYSICAL_COORDS };
+    Vector3 transformed = {vec.x * RENDER_UNITS_TO_KM, vec.z * RENDER_UNITS_TO_KM, vec.y * RENDER_UNITS_TO_KM };
 
     return transformed;
 }

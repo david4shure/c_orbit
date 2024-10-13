@@ -18,15 +18,26 @@
 #include "rcamera.h"
 #include "rlgl.h"
 #include <stdio.h>
-#include "physics.h"
-#include "rlutil.h"
 #include "raygui.h"
-#include "darray.h"
 
+#include "physics/constants.h"
+#include "physics/time.h"
+#include "physics/kepler.h"
+#include "utils/rlutil.h"
+#include "utils/darray.h"
+#include "utils/logger.h"
 
-#define MAX_COLUMNS 20
+// Function to check if an object is behind the camera
+bool is_object_behind_camera(Vector3 cam_pos, Vector3 cam_target, Vector3 obj_pos) {
+    Vector3 camera_to_target = Vector3Normalize(Vector3Subtract(cam_pos,cam_target));
+    Vector3 camera_to_object = Vector3Normalize(Vector3Subtract(cam_pos,obj_pos));
 
-void draw_orbital_lines(OrbitalElements orbit) {
+    float dot = Vector3DotProduct(camera_to_target, camera_to_object);
+
+    return dot < 0;
+}
+
+void draw_orbital_lines(OrbitalElements orbit, Camera* camera) {
     int num_lines = 300;
 
     void* orbital_positions = darray_init(num_lines, sizeof(Vector3));
@@ -51,14 +62,14 @@ void draw_orbital_lines(OrbitalElements orbit) {
     Vector3* current_pos = NULL;
 
     // Now iterate over our darray and draw lines
-    for (int i = 0; i < darray_length(orbital_positions) + 1; i++) {
+    for (int i = 0; i < darray_length(orbital_positions); i++) {
         if (i == 0) {
             prev_pos = (Vector3*)darray_get(orbital_positions, 0);
             continue;
         }
 
         // Wrap around and connect last point to first to complete the ellipse
-        if (i >= darray_length(orbital_positions)) {
+        if (i >= darray_length(orbital_positions)-1) {
             current_pos = (Vector3*)darray_get(orbital_positions, 0);
         } else {
             current_pos = (Vector3*)darray_get(orbital_positions, i);
@@ -75,32 +86,37 @@ void draw_orbital_lines(OrbitalElements orbit) {
         prev_pos = current_pos;
     }
 
-    for (int j = num_lines/2; j < num_lines; j++) {
-        if (j%3 != 0) {
+    Vector3* curr_pos = NULL;
+    for (int j = 0; j < darray_length(orbital_positions); j++) {
+        if (j == 0) {
+            prev_pos = (Vector3*)darray_get(orbital_positions, 0);
             continue;
         }
 
-        if (j == num_lines / 2) {
-            continue;
+        curr_pos = (Vector3*)darray_get(orbital_positions, j);
+
+        // Wrap around and connect last point to first to complete the ellipse
+        if (j >= darray_length(orbital_positions)-1) {
+            curr_pos = (Vector3*)darray_get(orbital_positions, 0);
+        } else {
+            curr_pos = (Vector3*)darray_get(orbital_positions, j);
         }
-
-        // Grab symmetrical index on other side
-        int k = (num_lines/2) - (j-num_lines/2);
-
-        printf("j=%d,k=%d\n",j,k);
-
-        Vector3* j_pos = (Vector3*)darray_get(orbital_positions, j);
-        Vector3* k_pos = (Vector3*)darray_get(orbital_positions, k);
 
         // Convert vector from physical dimensions to render dimensions
-        Vector3 world_j = vector_from_physical_to_world(*j_pos);
-        Vector3 world_k = vector_from_physical_to_world(*k_pos);
+        Vector3 world_j = vector_from_physical_to_world(*prev_pos);
+        Vector3 world_k = vector_from_physical_to_world(*curr_pos);
+
+        Color backside  = (Color){.r=100.0,.g=0,.b=120,.a=50};
+        Color frontside = (Color){.r=100.0,.g=100,.b=120,.a=50};
 
         // Draw the symmetry line
-        DrawLine3D(world_j, world_k, DARKGRAY);
+        DrawTriangle3D((Vector3){.x=0.0,.y=0.0,.z=0.0}, world_j, world_k, frontside);
+        DrawTriangle3D((Vector3){.x=0.0,.y=0.0,.z=0.0}, world_k, world_j, backside);
+
+        prev_pos = curr_pos;
     }
 
-    printf("Freeing orbital positions at adr = %p, i = %d\n",orbital_positions,i);
+    // Draw t=0 line
     darray_free(orbital_positions);
 }
 
@@ -109,9 +125,15 @@ void draw_orbital_lines(OrbitalElements orbit) {
 // Program main entry point
 //------------------------------------------------------------------------------------
 int main(void) {
+    // Initialize Logger
+    InitializeLogger(DEBUG);
 
-    const Vector3 moon_real_position = {-6045, -3490, 2500};
-    const Vector3 moon_real_velocity = {-3.457, 6.618, 2.533};
+    Fatal("Fatal = %i.",10);
+    Error("Error.");
+    Warn("Warn = %i.",100);
+    Log("Log.");
+    Info("Info.");
+    Debug("Debug.");
 
     // Approximate ECI position of the Moon (in km)
     Vector3 moon_position = { 318000.0f, 215000.0f, 5000.0f };
@@ -152,7 +174,7 @@ int main(void) {
     float phi = 0.0;
 
 
-    Matrix matProj = MatrixPerspective(camera.fovy*DEG2RAD, ((double)GetScreenWidth()/(double)GetScreenHeight()), 0.1,1000000.0);
+    Matrix matProj = MatrixPerspective(camera.fovy*DEG2RAD, ((double)GetScreenWidth()/(double)GetScreenHeight()), 0.1,10000000.0);
 
     DisableCursor();                    // Limit cursor to relative movement inside the window
 
@@ -170,9 +192,14 @@ int main(void) {
 
         Vector3 moon_pos_physical = solve_kepler_ellipse_inertial(eles, M_naught, t_naught, clock.clock_seconds);
         Vector3 moon_pos_world = vector_from_physical_to_world(moon_pos_physical);
-        Vector2 screenspace_pos = GetWorldToScreen(moon_pos_world, camera);
         // sqrt((x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2)
         float dist = Vector3Distance(moon_pos_world, camera.position);
+        Vector3 t0_line = vector_from_physical_to_world(solve_kepler_ellipse_inertial(eles, 0.0, 0.0, 0.0));
+        Vector3 t0_norm = Vector3Normalize(t0_line);
+        Vector3 t0_farther_out = Vector3Add(t0_line, Vector3Scale(t0_norm,200));
+
+        Vector2 t0_farther_out_world = GetWorldToScreen(t0_farther_out, camera);
+        Vector2 moon = GetWorldToScreen(moon_pos_world, camera);
 
         // Draw
         //----------------------------------------------------------------------------------
@@ -185,15 +212,15 @@ int main(void) {
             BeginMode3D(camera);
                 rlSetMatrixProjection(matProj);
 
-                draw_orbital_lines(eles);
+                draw_orbital_lines(eles,&camera);
 
                 Vector3 sphere_pos = {0.0,0.0,0.0};
 
-                DrawSphereWires(sphere_pos,100.0,10,10,SKYBLUE);
-                Color grid_color = { .r = 0, .g = 240, .b = 0, .a = 50};
-                DrawGridOfColor(250,5000,grid_color); // Draw ground
+                DrawSphereWires(sphere_pos,EARTH_RADIUS_KM * KM_TO_RENDER_UNITS,10,10,SKYBLUE);
+                Color grid_color = { .r = 0, .g = 240, .b = 0, .a = 150};
+                DrawGridOfColor(250,50000,grid_color); // Draw ground
 
-                DrawSphereWires(moon_pos_world,15,10,10,LIGHTGRAY);
+                DrawSphereWires(moon_pos_world,(MOON_RADIUS_KM * KM_TO_RENDER_UNITS),10,10,GRAY);
             EndMode3D();
 
             float max_distance = 5000.0;
@@ -202,8 +229,14 @@ int main(void) {
             float time_scale_factor = sin(time*1.5)/4.0 + 1;
             float scale_factor = distance_scale_factor * time_scale_factor;
 
-            DrawRing(screenspace_pos, 14*(scale_factor), 15*(scale_factor), 0.0, 360.0,20, GRAY);
-            DrawText("MOON",(int)screenspace_pos.x - MeasureText("MOON",10)/2,(int)screenspace_pos.y - MeasureText("MOON", 10),10,GREEN);
+            if (!is_object_behind_camera(camera.position, camera.target, moon_pos_world)) {
+                DrawRing(moon, 14*(scale_factor), 15*(scale_factor), 0.0, 360.0,20, GRAY);
+                DrawText("MOON",(int)moon.x - MeasureText("MOON",10)/2,(int)moon.y - MeasureText("MOON", 10),10,GREEN);
+            }
+
+            if (!is_object_behind_camera(camera.position, camera.target, t0_farther_out)) {
+                DrawText("T=0",(int)t0_farther_out_world.x - MeasureText("T=0",10)/2,(int)t0_farther_out_world.y - MeasureText("T=0", 10),10,GREEN);
+            }
 
         EndDrawing();
         //----------------------------------------------------------------------------------
