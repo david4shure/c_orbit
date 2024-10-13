@@ -4,6 +4,7 @@
 #include <math.h>
 #include <stdio.h>
 #include "constants.h"
+#include "../utils/logger.h"
 
 float mean_anom(float mean_anomaly_at_epoch, float time, float time_at_epoch, float orbital_period) {
     // First calculate mean motion
@@ -69,7 +70,7 @@ float solve_kepler_eq_ellipse(float eccentricity, float mean_anomaly, int max_it
         count++;
 
         if (count > max_iters) {
-            printf("Failed to converge after %d iters\n",max_iters);
+            Warn("Failed to converge for keplers eq after %d iters\n",max_iters);
             break;
         }
     }
@@ -238,18 +239,18 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ) {
 }
 
 void print_orbital_elements(OrbitalElements elems) {
-    printf("------\n");
-    printf("semi-major axis = %.2f\n",elems.semimajor_axis);
-    printf("eccentricity = %.2f\n",elems.eccentricity);
-    printf("orbital period (s) = %.2f\n",elems.period);
-    printf("grav param = %.2f\n",elems.grav_param);
-    printf("mean anomaly = %.2f\n",elems.mean_anomaly);
-    printf("eccentric anomaly = %.2f\n",elems.eccentric_anomaly);
-    printf("true anomaly = %.2f\n",elems.true_anomaly);
-    printf("inclination = %.2f\n",elems.inclination);
-    printf("arg of periapsis = %.2f\n", elems.arg_of_periapsis);
-    printf("long of asc node = %.2f\n", elems.long_of_asc_node);
-    printf("-------\n");
+    Debug("------\n");
+    Debug("semi-major axis = %.2f\n",elems.semimajor_axis);
+    Debug("eccentricity = %.2f\n",elems.eccentricity);
+    Debug("orbital period (s) = %.2f\n",elems.period);
+    Debug("grav param = %.2f\n",elems.grav_param);
+    Debug("mean anomaly = %.2f\n",elems.mean_anomaly);
+    Debug("eccentric anomaly = %.2f\n",elems.eccentric_anomaly);
+    Debug("true anomaly = %.2f\n",elems.true_anomaly);
+    Debug("inclination = %.2f\n",elems.inclination);
+    Debug("arg of periapsis = %.2f\n", elems.arg_of_periapsis);
+    Debug("long of asc node = %.2f\n", elems.long_of_asc_node);
+    Debug("-------\n");
 }
 
 // TODO implement me
@@ -330,15 +331,4 @@ Vector3 solve_kepler_ellipse_inertial(OrbitalElements elems, float M_naught, flo
     // Transform the point and return
     return Vector3Transform((Vector3){.x = perifocal_coords.x, .y = perifocal_coords.y, .z = 0.0}, mat);
 }              
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
-               
+              
