@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <raylib.h>
+#include "logger.h"
 
 void* darray_create(void* arr, int capacity) {
     // Parse out darrray_header from ptr
@@ -63,7 +64,7 @@ void* darray_insert(void* arr, void* item, int index) {
 
     if (index > header->size-1) {
         // need to RL_REALLOCate
-        printf("Inserted beyond bounds\n");
+        Warn("Inserted beyond bounds\n");
         return NULL;
     }
 
@@ -84,7 +85,7 @@ void* darray_pop(void* arr) {
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (header->size == 0) {
-        printf("Tried to pop from empty arr");
+        Warn("Tried to pop from empty arr");
         return arr;
     }
 
@@ -107,12 +108,12 @@ void* darray_pop_at(void* arr, int index) {
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (header->size == 0) {
-        printf("Tried to pop from empty arr\n");
+        Warn("Tried to pop from empty arr\n");
         return arr;
     }
 
     if (index > header->size - 1) {
-        printf("Tried to pop at index > size-1\n");
+        Warn("Tried to pop at index > size-1\n");
         return arr;
     }
 
@@ -140,13 +141,12 @@ void* darray_insert_at(void* arr, void* item, int index) {
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (index < 0) {
-        printf("Tried to insert out of bound\n");
+        Warn("Tried to insert out of bound\n");
         return arr;
     }
 
     if (header->size + 1 >= header->capacity) {
-        printf("Reallocating new array...\n");
-        // Increase capacity
+        Log("Reallocating new array...\n"); // Increase capacity
         header->capacity *= DARRAY_GROWTH_FACTOR;
         // Realloc new array + header
         arr = darray_create(arr,header->capacity);
@@ -175,7 +175,7 @@ void darray_free(void* arr) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
-    printf("free(%p)\n",arr);
+    Debug("free(%p)\n",arr);
 
     RL_FREE(header);
 }
@@ -186,7 +186,7 @@ void* darray_get(void* arr, int index) {
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (index > header->size-1 || index < 0) {
-        printf("Getting beyond bounds\n");
+        Warn("Getting beyond bounds\n");
         return NULL;
     }
 
@@ -201,7 +201,7 @@ void darray_set(void* arr, void* item, int index) {
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (index > header->size-1 || index < 0) {
-        printf("Setting beyond bounds\n");
+        Debug("Setting beyond bounds\n");
         return;
     }
 

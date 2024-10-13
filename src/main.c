@@ -42,7 +42,7 @@ void draw_orbital_lines(OrbitalElements orbit, Camera* camera) {
 
     void* orbital_positions = darray_init(num_lines, sizeof(Vector3));
 
-    printf("Malloc ptr = %p\n",orbital_positions);
+    Info("Malloc ptr = %p\n",orbital_positions);
 
     // Draw num_lines lines (+1)
     float increment = orbit.period / num_lines;
@@ -128,12 +128,12 @@ int main(void) {
     // Initialize Logger
     InitializeLogger(DEBUG);
 
-    Fatal("Fatal = %i.",10);
-    Error("Error.");
-    Warn("Warn = %i.",100);
-    Log("Log.");
-    Info("Info.");
-    Debug("Debug.");
+    Fatal("Fatal = %i.\n",10);
+    Error("Error.\n");
+    Warn("Warn = %i.\n",100);
+    Log("Log.\n");
+    Info("Info.\n");
+    Debug("Debug.\n");
 
     // Approximate ECI position of the Moon (in km)
     Vector3 moon_position = { 318000.0f, 215000.0f, 5000.0f };

@@ -43,6 +43,6 @@ void _Log(enum LOG_LEVEL passed_log_level, const char* format, ...) {
     va_start (args, format);
     vprintf (format, args);
     va_end (args);
-    printf("\033[0m\n");
+    printf("\033[0m");
 }
 
