@@ -9,6 +9,7 @@ typedef struct OrbitalElements {
     float eccentricity; // eccentricity
     float mean_anomaly; // Mean anomaly (Rads)
     float eccentric_anomaly; // Eccentric Anomaly (Rads)
+    float hyperbolic_anomaly; // Hyperbolic Anomaly (Rads)
     float true_anomaly; // True anomaly (Rads)
     float arg_of_periapsis; // Argument of periapsis (Rads)
     float long_of_asc_node; // Longitude of the ascending node (Rads)
@@ -40,6 +41,12 @@ float mean_anom(float M_naught, float t, float t_naught, float T);
 
 // Computes eccentric anomaly from true anomaly
 float true_anom_to_ecc_anom(float true_anomaly, float eccentricity);
+
+// Computes mean anomaly given hyperbolic anomaly
+float hyperbolic_anom_to_mean_anom(float hyperbolic_anom, float eccentricity);
+
+// Converts true anomaly to hyperbolic anomaly
+float true_anom_to_hyperbolic_anom(float true_anomaly, float eccentricity);
 
 // Computes true anomaly from eccentric anomaly
 float ecc_anom_to_true_anom(float eccentricity, float eccentric_anomaly);

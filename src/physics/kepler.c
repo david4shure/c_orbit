@@ -16,6 +16,29 @@ float mean_anom(float mean_anomaly_at_epoch, float time, float time_at_epoch, fl
     return M;
 }
 
+// Function to compute the mean anomaly from the hyperbolic anomaly
+float hyperbolic_anom_to_mean_anom(float hyperbolic_anom, float eccentricity) {
+    // Mean anomaly M = e * sinh(H) - H
+    float M = eccentricity * sinh(hyperbolic_anom) - hyperbolic_anom;
+
+    return M;
+}
+
+// Function to compute hyperbolic anomaly from true anomaly
+float true_anom_to_hyperbolic_anom(float true_anomaly, float eccentricity) {
+    float nu = true_anomaly * M_PI / 180.0;
+
+    float tan_nu_2 = tan(nu / 2.0);
+
+    float sqrt_term = sqrt((eccentricity + 1) / (eccentricity - 1));
+
+    float tanh_H_2 = tan_nu_2 / sqrt_term;
+
+    float H_2 = atanh(tanh_H_2);
+
+    return 2.0 * H_2;
+}
+
 float true_anom_to_ecc_anom(float true_anomaly, float eccentricity) {
     // Calculate the factor sqrt((1 - e) / (1 + e))
     float factor = sqrt((1 - eccentricity) / (1 + eccentricity));
@@ -69,7 +92,7 @@ float solve_kepler_eq_ellipse(float eccentricity, float mean_anomaly, int max_it
         count++;
 
         if (count > max_iters) {
-            Warn("Failed to converge for keplers eq after %d iters\n",max_iters);
+            //Warn("Failed to converge for keplers eq after %d iters\n",max_iters);
             break;
         }
     }
@@ -209,8 +232,16 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ) {
     float a = h * h / μ / (1 - e * e);
     
     // Compute eccentric anomaly + mean anomaly using helper functions
-    float Ea = true_anom_to_ecc_anom(Ta, e);
-    float Ma = ecc_anom_to_mean_anom(Ea, e);
+
+    float Ha, Ma, Ea;
+
+    if (e >= 1.0) {
+        Ha = true_anom_to_hyperbolic_anom(Ta, e);
+        Ma = hyperbolic_anom_to_mean_anom(Ha, e);
+    } else {
+        Ea = true_anom_to_ecc_anom(Ta, e);
+        Ma = ecc_anom_to_mean_anom(Ea, e);
+    }
     float T = 2.0 * PI * sqrt(pow(a, 3) / μ); 
 
     // Return elements
@@ -218,6 +249,7 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ) {
         .semimajor_axis = a,
         .eccentricity = e,
         .eccentric_anomaly = Ea,
+        .hyperbolic_anomaly = Ha,
         .mean_anomaly = Ma,
         .inclination = i,
         .long_of_asc_node = Ra,
@@ -240,6 +272,7 @@ void print_orbital_elements(OrbitalElements elems) {
     Debug("grav param = %f\n",elems.grav_param);
     Debug("mean anomaly = %f degrees\n",elems.mean_anomaly * RAD2DEG);
     Debug("eccentric anomaly = %f degrees\n",elems.eccentric_anomaly * RAD2DEG);
+    Debug("hyperbolic anomaly = %f degrees\n",elems.hyperbolic_anomaly * RAD2DEG);
     Debug("true anomaly = %f degrees\n",elems.true_anomaly * RAD2DEG);
     Debug("inclination = %f degrees\n",elems.inclination * RAD2DEG);
     Debug("arg of periapsis = %f degrees\n", elems.arg_of_periapsis * RAD2DEG);
@@ -332,14 +365,11 @@ float solve_universal_anomaly(float dt, float r0, float vr0, float a_inv, float 
     float C, S, F, dFdx = 0.0;
 
     while (fabs(ratio) > error && n <= max_iters) {
-        // Calculate Stumpff functions
         C = stump_c(a_inv * x * x);
         S = stump_s(a_inv * x * x);
 
-        // Estimate F using radial velocity
         F = ((r0 * vr0) / sqrt(grav_param)) * x * x * C + (1.0 - a_inv * r0) * x * x * x * S + r0 * x - sqrt(grav_param) * dt;
 
-        // Estimate dF / dx
         dFdx = (r0 * vr0 / sqrt(grav_param)) * x * (1.0 - a_inv * x * x * S) + (1.0 - a_inv * r0) * x * x * C + r0;
 
         // Levenberg-Marquardt step size control
@@ -359,12 +389,11 @@ float solve_universal_anomaly(float dt, float r0, float vr0, float a_inv, float 
             lambda *= nu;
         }
 
-        // Increment iteration counter
         n++;
     }
 
     if (n > max_iters) {
-        Warn("solve_universal_anomaly() reached max iterations without convergence, n = %i\n", n);
+        //Warn("solve_universal_anomaly() reached max iterations without convergence, n = %i\n", n);
     }
 
     return x;

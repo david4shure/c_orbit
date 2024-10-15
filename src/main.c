@@ -51,7 +51,7 @@ void draw_orbital_lines(PhysicalState rv, Camera* camera) {
     int i = 0;
 
     // Iterate through entire orbit
-    for (float t = -100000.0; t < 100000; t += increment) {
+    for (float t = -100000.0; t < 100000.0; t += increment) {
         i += 1;
 
         PhysicalState rv_orb = rv_from_r0v0(rv.r,rv.v,t,398600.4418);
@@ -137,7 +137,7 @@ int main(void) {
     Vector3 moon_position = { 20000.0f, 0.0f, -10.0f };
 
     // Approximate ECI velocity of the Moon (in km/s)
-    Vector3 moon_velocity = { 4.0, 0.0, 5.0};
+    Vector3 moon_velocity = { 4.0, 0.0, 6.0};
 
     PhysicalState state = {moon_position,moon_velocity};
     OrbitalElements eles = orb_elems_from_rv(state, 398600.4418);
