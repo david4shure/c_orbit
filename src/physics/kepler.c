@@ -329,7 +329,7 @@ Vector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, float M_naught, fl
 float solve_universal_anomaly(float dt, float r0, float v0, float a_inv, float grav_param) {
     // User is passing in real semi-major axis, we calculate inv_a
     float error = 1e-5;
-    int max_iters = 1000;
+    int max_iters = 50;
 
     // ... Starting value for x:
     float x = sqrt(grav_param) * fabs(a_inv) * dt;
@@ -339,7 +339,7 @@ float solve_universal_anomaly(float dt, float r0, float v0, float a_inv, float g
     float C, S, F, dFdx = 0.0;
 
     while (fabs(ratio) > error && n <= max_iters) {
-        Log("fabs(ratio) = %.5f, error = %.5f\n",fabs(ratio),error);
+        //Debug("fabs(ratio) = %.5f, error = %.5f\n",fabs(ratio),error);
 
         // Calculate stumps and stumpc
         C = stump_c(a_inv*x*x);
