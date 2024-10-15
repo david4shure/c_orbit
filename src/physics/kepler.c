@@ -2,7 +2,6 @@
 #include "math.h"
 #include "raymath.h"
 #include <math.h>
-#include <stdio.h>
 #include "constants.h"
 #include "../utils/logger.h"
 
@@ -233,6 +232,8 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ) {
         .true_anomaly = Ta,
         .arg_of_periapsis = w,
         .period = T,
+        .ang_momentum = h,
+        .ang_momentum_vec = H,
     };
 
     return elems;
@@ -240,23 +241,53 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ) {
 
 void print_orbital_elements(OrbitalElements elems) {
     Debug("------\n");
-    Debug("semi-major axis = %.2f\n",elems.semimajor_axis);
-    Debug("eccentricity = %.2f\n",elems.eccentricity);
-    Debug("orbital period (s) = %.2f\n",elems.period);
-    Debug("grav param = %.2f\n",elems.grav_param);
-    Debug("mean anomaly = %.2f\n",elems.mean_anomaly);
-    Debug("eccentric anomaly = %.2f\n",elems.eccentric_anomaly);
-    Debug("true anomaly = %.2f\n",elems.true_anomaly);
-    Debug("inclination = %.2f\n",elems.inclination);
-    Debug("arg of periapsis = %.2f\n", elems.arg_of_periapsis);
-    Debug("long of asc node = %.2f\n", elems.long_of_asc_node);
+    Debug("semi-major axis = %f\n",elems.semimajor_axis);
+    Debug("eccentricity = %f\n",elems.eccentricity);
+    Debug("orbital period (s) = %f\n",elems.period);
+    Debug("grav param = %f\n",elems.grav_param);
+    Debug("mean anomaly = %f degrees\n",elems.mean_anomaly * RAD2DEG);
+    Debug("eccentric anomaly = %f degrees\n",elems.eccentric_anomaly * RAD2DEG);
+    Debug("true anomaly = %f degrees\n",elems.true_anomaly * RAD2DEG);
+    Debug("inclination = %f degrees\n",elems.inclination * RAD2DEG);
+    Debug("arg of periapsis = %f degrees\n", elems.arg_of_periapsis * RAD2DEG);
+    Debug("long of asc node = %f degrees\n", elems.long_of_asc_node * RAD2DEG);
+    Debug("angular momentum h = %f\n", elems.ang_momentum * RAD2DEG);
     Debug("-------\n");
 }
 
-// TODO implement me
-/* PhysicalState rv_from_orb_elems(OrbitalElements elems) { */
+PhysicalState rv_from_orb_elems(OrbitalElements elems) {
+    Vector3 i_hat = (Vector3){1.0,0.0,0.0};
+    Vector3 j_hat = (Vector3){0.0,1.0,0.0};
     
-/* } */
+    // rp = (hˆ2/mu) * (1/(1 + e*cos(TA))) * (cos(TA)*[1;0;0] + sin(TA)*[0;1;0]);
+    //       rp_term_a    rp_term_b                rp_term_c             rp_term_d
+
+    float rp_term_a = ((elems.ang_momentum * elems.ang_momentum)/elems.grav_param);
+    float rp_term_b = 1/(1 + elems.eccentricity*cos(elems.true_anomaly));
+    Vector3 rp_term_c = Vector3Scale(i_hat,cos(elems.true_anomaly));
+    Vector3 rp_term_d = Vector3Scale(j_hat,sin(elems.true_anomaly));
+    Vector3 c_plus_d = Vector3Add(rp_term_c, rp_term_d);
+
+    Vector3 rp = Vector3Scale(c_plus_d, rp_term_a * rp_term_b);
+
+    // vp = (mu/h) * (-sin(TA)*[1;0;0] + (e + cos(TA))*[0;1;0]);
+    //        ^             ^                  ^
+    //    vp_term_a     vp_term_b           vp_term_c
+    float vp_term_a = (elems.grav_param/elems.ang_momentum);
+    float vp_term_b = (-sin(elems.true_anomaly));
+    float vp_term_c = (elems.eccentricity + cos(elems.true_anomaly));
+
+    Vector3 vp = Vector3Scale(Vector3Add(Vector3Scale(i_hat,vp_term_b),Vector3Scale(j_hat,vp_term_c)),vp_term_a);
+
+    // Explicit Vector3 -> Vector2 code
+    Vector2 vp_pq = (Vector2){.x=vp.x,.y=vp.y};
+    Vector2 rp_pq = (Vector2){.x=rp.x,.y=rp.y};
+
+    return (PhysicalState){
+        .r = perifocal_coords_to_inertial_coords(rp_pq, elems.long_of_asc_node, elems.arg_of_periapsis, elems.inclination),
+        .v = perifocal_coords_to_inertial_coords(vp_pq, elems.long_of_asc_node,elems.arg_of_periapsis,elems.inclination)
+    };
+}
 
 Vector3 vector_from_physical_to_world(Vector3 vec) {
     Vector3 transformed = {vec.x * KM_TO_RENDER_UNITS, vec.z * KM_TO_RENDER_UNITS, vec.y * KM_TO_RENDER_UNITS };
@@ -293,32 +324,29 @@ Vector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, float M_naught, fl
     return (Vector2){.x=x,.y=y};
 }
 
-
-Vector3 solve_kepler_ellipse_inertial(OrbitalElements elems, float M_naught, float t_naught, float t) {
-    Vector2 perifocal_coords = solve_kepler_ellipse_perifocal(elems, M_naught, t_naught, t);
-
+Vector3 perifocal_coords_to_inertial_coords(Vector2 pq,float long_of_asc_node,float arg_of_periapsis, float inclination) {
     // Perform a single combined linear transformation on these perifocal 
     // coords to convert to inertial 3d space
     // cos Ω cos ω − sin Ω sin ω cos i 
-    float i_1_1 = cos(elems.long_of_asc_node) * cos(elems.arg_of_periapsis) - sin(elems.long_of_asc_node) * sin(elems.arg_of_periapsis) * cos(elems.inclination);
+    float i_1_1 = cos(long_of_asc_node) * cos(arg_of_periapsis) - sin(long_of_asc_node) * sin(arg_of_periapsis) * cos(inclination);
     // − cos Ω sin ω − sin Ω cos ω cos i
-    float i_1_2  = - cos(elems.long_of_asc_node) * sin(elems.arg_of_periapsis) - sin(elems.long_of_asc_node) * cos(elems.arg_of_periapsis) * cos(elems.inclination);
+    float i_1_2  = - cos(long_of_asc_node) * sin(arg_of_periapsis) - sin(long_of_asc_node) * cos(arg_of_periapsis) * cos(inclination);
     // sin Ω sin i
-    float i_1_3 = sin(elems.long_of_asc_node) * sin(elems.inclination);
+    float i_1_3 = sin(long_of_asc_node) * sin(inclination);
 
     // sin Ω cos ω + cos Ω sin ω cos i
-    float i_2_1 = sin(elems.long_of_asc_node) * cos(elems.arg_of_periapsis) + cos(elems.long_of_asc_node) * sin(elems.arg_of_periapsis) * cos(elems.inclination);
+    float i_2_1 = sin(long_of_asc_node) * cos(arg_of_periapsis) + cos(long_of_asc_node) * sin(arg_of_periapsis) * cos(inclination);
     // − sin Ω sin ω + cos Ω cos ω cos i
-    float i_2_2 = - sin(elems.long_of_asc_node) * sin(elems.arg_of_periapsis) + cos(elems.long_of_asc_node) * cos(elems.arg_of_periapsis) * cos(elems.inclination);
+    float i_2_2 = - sin(long_of_asc_node) * sin(arg_of_periapsis) + cos(long_of_asc_node) * cos(arg_of_periapsis) * cos(inclination);
     // − cos Ω sin i
-    float i_2_3 = - cos(elems.long_of_asc_node) * sin(elems.inclination);
+    float i_2_3 = - cos(long_of_asc_node) * sin(inclination);
 
     // sin ω sin i
-    float i_3_1 = sin(elems.arg_of_periapsis) * sin(elems.inclination);
+    float i_3_1 = sin(arg_of_periapsis) * sin(inclination);
     // cos ω sin i
-    float i_3_2 = cos(elems.arg_of_periapsis) * sin(elems.inclination);
+    float i_3_2 = cos(arg_of_periapsis) * sin(inclination);
     // cos i
-    float i_3_3 = cos(elems.inclination);
+    float i_3_3 = cos(inclination);
 
     // Create 3x3 matrix
     Matrix mat = {
@@ -329,6 +357,10 @@ Vector3 solve_kepler_ellipse_inertial(OrbitalElements elems, float M_naught, flo
     };
 
     // Transform the point and return
-    return Vector3Transform((Vector3){.x = perifocal_coords.x, .y = perifocal_coords.y, .z = 0.0}, mat);
-}              
-              
+    return Vector3Transform((Vector3){.x = pq.x, .y = pq.y, .z = 0}, mat);
+}
+
+Vector3 solve_kepler_ellipse_inertial(OrbitalElements elems, float M_naught, float t_naught, float t) {
+    Vector2 perifocal_coords = solve_kepler_ellipse_perifocal(elems, M_naught, t_naught, t);
+    return perifocal_coords_to_inertial_coords(perifocal_coords, elems.long_of_asc_node, elems.arg_of_periapsis, elems.inclination);
+} 

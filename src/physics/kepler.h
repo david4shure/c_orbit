@@ -14,6 +14,8 @@ typedef struct OrbitalElements {
     float inclination; // Inclination (Rads)
     float period; // Orbital Period
     float grav_param; // Specific gravitational parameter for central body
+    float ang_momentum; // Angular momentum (km^2/s)
+    Vector3 ang_momentum_vec; // Angular momentum vector
 } OrbitalElements;
 
 typedef struct PhysicalState {
@@ -57,7 +59,7 @@ Vector3 solve_kepler_ellipse_inertial(OrbitalElements elems, float M_naught, flo
 Vector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, float M_naught, float t_naught, float t); 
 
 // Gets R (position), V (velocity) vectors from OrbitalElements
-PhysicalState rv_from_orb_elems_ellipse(OrbitalElements elems);
+PhysicalState rv_from_orb_elems(OrbitalElements elems);
 
 // Converts a Vec3 in World render coords to physical coords
 Vector3 vector_from_world_to_physical(Vector3 vec);
@@ -67,3 +69,6 @@ Vector3 vector_from_physical_to_world(Vector3 vec);
 
 // Prints orbital elements duh
 void print_orbital_elements(OrbitalElements e);
+
+// Applies necessary transforms to convert perifocal coords to inertial coords
+Vector3 perifocal_coords_to_inertial_coords(Vector2 pq,float long_of_asc_node,float arg_of_periapsis, float inclination);

@@ -146,7 +146,7 @@ void* darray_insert_at(void* arr, void* item, int index) {
     }
 
     if (header->size + 1 >= header->capacity) {
-        Log("Reallocating new array...\n"); // Increase capacity
+        Debug("Reallocating new array...\n"); // Increase capacity
         header->capacity *= DARRAY_GROWTH_FACTOR;
         // Realloc new array + header
         arr = darray_create(arr,header->capacity);

@@ -27,6 +27,8 @@
 #include "utils/darray.h"
 #include "utils/logger.h"
 
+#define LOG_LEVEL DEBUG
+
 // Function to check if an object is behind the camera
 bool is_object_behind_camera(Vector3 cam_pos, Vector3 cam_target, Vector3 obj_pos) {
     Vector3 camera_to_target = Vector3Normalize(Vector3Subtract(cam_pos,cam_target));
@@ -42,7 +44,7 @@ void draw_orbital_lines(OrbitalElements orbit, Camera* camera) {
 
     void* orbital_positions = darray_init(num_lines, sizeof(Vector3));
 
-    Info("Malloc ptr = %p\n",orbital_positions);
+    Debug("Malloc ptr = %p\n",orbital_positions);
 
     // Draw num_lines lines (+1)
     float increment = orbit.period / num_lines;
@@ -126,7 +128,7 @@ void draw_orbital_lines(OrbitalElements orbit, Camera* camera) {
 //------------------------------------------------------------------------------------
 int main(void) {
     // Initialize Logger
-    InitializeLogger(DEBUG);
+    InitializeLogger(LOG_LEVEL);
 
     Fatal("Fatal = %i.\n",10);
     Error("Error.\n");
@@ -136,15 +138,33 @@ int main(void) {
     Debug("Debug.\n");
 
     // Approximate ECI position of the Moon (in km)
-    Vector3 moon_position = { 318000.0f, 215000.0f, 5000.0f };
+    Vector3 moon_position = { -6045.0, -3490.0, 2500.0 };
 
     // Approximate ECI velocity of the Moon (in km/s)
-    Vector3 moon_velocity = { -0.6f, 0.8f, 0.1f };
+    Vector3 moon_velocity = { -3.457, 6.618, 2.533 };
 
     PhysicalState state = {moon_position,moon_velocity};
     OrbitalElements eles = orb_elems_from_rv(state, 398600.4418);
-    
     print_orbital_elements(eles);
+    PhysicalState RV = rv_from_orb_elems(eles);
+
+    Log("given R = (%.2f,%.2f,%.2f), V = (%.2f, %.2f, %.2f)\n",moon_position.x,moon_position.y,moon_position.z,moon_velocity.x,moon_velocity.y,moon_velocity.z);
+    Log("computed R = (%.2f,%.2f,%.2f), V = (%.2f, %.2f, %.2f)\n",RV.r.x,RV.r.y,RV.r.z,RV.v.x,RV.v.y,RV.v.z);
+
+
+    OrbitalElements eles_to_rv = (OrbitalElements){
+        .ang_momentum = 80000.0,
+        .grav_param = 398600.4418,
+        .eccentricity = 1.4,
+        .long_of_asc_node = 40.0 * DEG2RAD,
+        .arg_of_periapsis = 60.0 * DEG2RAD,
+        .true_anomaly = 30.0 * DEG2RAD,
+        .inclination = 30.0 * DEG2RAD,
+    };
+
+    PhysicalState RV2 = rv_from_orb_elems(eles_to_rv);
+    Log("final computed R = (%.2f,%.2f,%.2f), V = (%.2f, %.2f, %.2f)\n",RV2.r.x,RV2.r.y,RV2.r.z,RV2.v.x,RV2.v.y,RV2.v.z);
+
     PhysicsTimeClock clock = { .tick_interval_seconds = 86400, .mode = Elapsing, .scale = 50.0, .delta_seconds = 0.0 };
 
     float M_naught = 2.35585;
@@ -163,7 +183,6 @@ int main(void) {
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };          // Camera up vector (rotation towards target)
     camera.fovy = 60.0f;                                // Camera field-of-view Y
     camera.projection = CAMERA_PERSPECTIVE;             // Camera projection type
-                                                        //
 
     int cameraMode = CAMERA_FREE;
     float time = 0.0;
