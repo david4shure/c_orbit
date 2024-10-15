@@ -165,6 +165,16 @@ int main(void) {
     PhysicalState RV2 = rv_from_orb_elems(eles_to_rv);
     Log("final computed R = (%.2f,%.2f,%.2f), V = (%.2f, %.2f, %.2f)\n",RV2.r.x,RV2.r.y,RV2.r.z,RV2.v.x,RV2.v.y,RV2.v.z);
 
+    Log("Computing universal anomaly now...\n");
+    float r0 = 10000.0;
+    float v0 = 3.0752;
+    float dt = 3600;
+    float a = -19655.0;
+
+    float x = solve_universal_anomaly(dt, r0, v0, a, 398600.4418);
+    Log("Universal anomaly x = %.4f\n",x);
+
+
     PhysicsTimeClock clock = { .tick_interval_seconds = 86400, .mode = Elapsing, .scale = 50.0, .delta_seconds = 0.0 };
 
     float M_naught = 2.35585;

@@ -5,6 +5,7 @@
 // We do everything in radians here
 typedef struct OrbitalElements {
     float semimajor_axis; // semi-major axis
+    float semilatus_rectum; // p, semilatus rectum
     float eccentricity; // eccentricity
     float mean_anomaly; // Mean anomaly (Rads)
     float eccentric_anomaly; // Eccentric Anomaly (Rads)
@@ -49,6 +50,10 @@ float distance_sphere_coords(float e, float a, float E);
 
 // Gets orbital elements in struct form from R (position) V (velcoity) vectors.
 OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ);
+
+// Solves for universal anomaly (algorithm 3.3, curtis D.5)
+// Units: km^0.5
+float solve_universal_anomaly(float dt, float r0, float v0, float a, float grav_param);
 
 // Solves keplers equation for the carteesian coords in inertial frame
 // with proper rotations applied (inclination, arg periapsis, long asc, etc)

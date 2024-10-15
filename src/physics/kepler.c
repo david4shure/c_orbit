@@ -94,23 +94,25 @@ float kepler_H_newt(float e, float M) {
     return F;
 }
 
+// Stumpff function C(z)
 float stump_c(float z) {
-    if (z > 0) {
-        return (1 - cos(sqrt(z)))/z;
-    } else if (z < 0) {
-        return (cosh(sqrt(-z)) - 1) / -z;
+    if (z > 1e-6) {
+        return (1.0 - cos(sqrt(z))) / z;
+    } else if (z < -1e-6) {
+        return (cosh(sqrt(-z)) - 1.0) / (-z);
     } else {
-        return 1.0/2.0;
+        return 0.5;
     }
 }
 
+// Stumpff function S(z)
 float stump_s(float z) {
-    if (z > 0) {
-        return (sqrt(z) - sin(sqrt(z)))/(powf(sqrt(-z),3));
-    } else if (z < 0) {
-        return (sinh(sqrt(-z)) - (sqrt(-z)))/(powf(sqrt(-z),3));
+    if (z > 1e-6) {
+        return (sqrt(z) - sin(sqrt(z))) / (sqrt(z * z * z));
+    } else if (z < -1e-6) {
+        return (sinh(sqrt(-z)) - sqrt(-z)) / sqrt((-z) * (-z) * (-z));
     } else {
-        return 1.0/6.0;
+        return 1.0 / 6.0;
     }
 }
 
@@ -322,6 +324,46 @@ Vector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, float M_naught, fl
 
     // Return our handy Vector2
     return (Vector2){.x=x,.y=y};
+}
+
+float solve_universal_anomaly(float dt, float r0, float v0, float a, float grav_param) {
+    // User is passing in real semi-major axis, we calculate inv_a
+    float a_inv = 1/a;
+    float error = 1e-10;
+    int max_iters = 1000;
+
+    // ... Starting value for x:
+    float x = sqrt(grav_param) * fabs(a_inv) * dt;
+
+    int n = 0;
+    float ratio = 1.0;
+    float C, S, F, dFdx = 0.0;
+
+    while (fabs(ratio) > error && n <= max_iters) {
+        // Calculate stumps and stumpc
+        C = stump_c(a_inv*x*x);
+        S = stump_s(a_inv*x*x);
+
+        // Estimate F
+        F = ((r0 * v0) / sqrt(grav_param)) * x * x * C + (1.0 - a_inv * r0) * x * x * x * S + r0 * x - sqrt(grav_param) * dt;
+        // Estimate dF / dt
+        dFdx = (r0 * v0 / sqrt(grav_param)) * x * (1.0 - a_inv * x * x * S) + (1.0 - a_inv * r0) * x * x * C + r0;
+
+        // Update ratio
+        ratio = F/dFdx;
+
+        // Update x
+        x = x - ratio;
+
+        // Increment n
+        n++;
+    }
+
+    if (n > max_iters) {
+        Warn("solve_universal_anomaly() reached max iterations without convergance, n = %i\n",n);
+    }
+
+    return x;
 }
 
 Vector3 perifocal_coords_to_inertial_coords(Vector2 pq,float long_of_asc_node,float arg_of_periapsis, float inclination) {
