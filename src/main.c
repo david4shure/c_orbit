@@ -171,9 +171,18 @@ int main(void) {
     float dt = 3600;
     float a = -19655.0;
 
-    float x = solve_universal_anomaly(dt, r0, v0, a, 398600.4418);
+    float x = solve_universal_anomaly(dt, r0, v0, 1/a, 398600.4418);
     Log("Universal anomaly x = %.4f\n",x);
 
+    Debug("computing r0v0\n");
+    Vector3 R0 = (Vector3){7000.0, -12124.0, 0.0};
+    Vector3 V0 = (Vector3){2.6679, 4.621, 0.0};
+
+    float t = 3600.0;
+
+    PhysicalState RV_FINAL = rv_from_r0v0(R0, V0, t, 398600.0);
+
+    Log("RV_FINAL PREDICTED R = (%.3f,%.3f,%.3f), V = (%.3f, %.3f, %.3f)\n",RV_FINAL.r.x,RV_FINAL.r.y,RV_FINAL.r.z,RV_FINAL.v.x,RV_FINAL.v.y,RV_FINAL.v.z);
 
     PhysicsTimeClock clock = { .tick_interval_seconds = 86400, .mode = Elapsing, .scale = 50.0, .delta_seconds = 0.0 };
 

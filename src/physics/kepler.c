@@ -326,10 +326,9 @@ Vector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, float M_naught, fl
     return (Vector2){.x=x,.y=y};
 }
 
-float solve_universal_anomaly(float dt, float r0, float v0, float a, float grav_param) {
+float solve_universal_anomaly(float dt, float r0, float v0, float a_inv, float grav_param) {
     // User is passing in real semi-major axis, we calculate inv_a
-    float a_inv = 1/a;
-    float error = 1e-10;
+    float error = 1e-5;
     int max_iters = 1000;
 
     // ... Starting value for x:
@@ -340,6 +339,8 @@ float solve_universal_anomaly(float dt, float r0, float v0, float a, float grav_
     float C, S, F, dFdx = 0.0;
 
     while (fabs(ratio) > error && n <= max_iters) {
+        Log("fabs(ratio) = %.5f, error = %.5f\n",fabs(ratio),error);
+
         // Calculate stumps and stumpc
         C = stump_c(a_inv*x*x);
         S = stump_s(a_inv*x*x);
@@ -364,6 +365,62 @@ float solve_universal_anomaly(float dt, float r0, float v0, float a, float grav_
     }
 
     return x;
+}
+
+LagrangeCoefs compute_lagrange_f_g(float univ_anomaly, float t, float r0, float a_inv, float grav_param) {
+    float z = a_inv * univ_anomaly * univ_anomaly;
+
+    float f = 1 - (univ_anomaly*univ_anomaly/r0)*stump_c(z);
+    float g = t - (1.0/sqrt(grav_param))*univ_anomaly*univ_anomaly*univ_anomaly*stump_s(z);
+
+    return (LagrangeCoefs){
+        .f = f,
+        .g = g,
+    };
+}
+
+LagrangeTimeDerivs compute_lagrange_fdot_gdot(float univ_anomaly, float r, float r0, float a_inv, float grav_param) {
+    float z = a_inv * univ_anomaly * univ_anomaly;
+
+    // sqrt(mu)/r/ro*(z*stumpS(z) - 1)*x
+    float f_dot = (sqrt(grav_param)/(r*r0)) * ((z*stump_s(z) - 1)*univ_anomaly);
+    // 1 - xˆ2/r*stumpC(z);
+    float g_dot = 1 - (univ_anomaly*univ_anomaly/r)*stump_c(z);
+
+    return (LagrangeTimeDerivs){
+        .f_dot = f_dot,
+        .g_dot = g_dot,
+    };
+}
+PhysicalState rv_from_r0v0(Vector3 R0, Vector3 V0, float t, float grav_param) {
+    float r0 = Vector3Length(R0);
+    float v0 = Vector3Length(V0);
+
+    float vr0 = Vector3DotProduct(R0, V0) / r0;
+
+    // %...Reciprocal of the semimajor axis (from the energy equation):
+    float alpha = 2/r0 - v0*v0/grav_param;
+
+    // Compute universal anomaly
+    float x = solve_universal_anomaly(t, r0, vr0, alpha, grav_param);
+
+    // Grab our lagrange coefficients here
+    LagrangeCoefs fg = compute_lagrange_f_g(x, t, r0, alpha, grav_param);
+
+    // Final position vector
+    Vector3 R = Vector3Add(Vector3Scale(R0,fg.f), Vector3Scale(V0,fg.g));
+
+    // Compute length of R
+    float r = Vector3Length(R);
+
+    LagrangeTimeDerivs fdotgdot = compute_lagrange_fdot_gdot(x, r, r0, alpha, grav_param);
+
+    Vector3 V = Vector3Add(Vector3Scale(R0,fdotgdot.f_dot), Vector3Scale(V0,fdotgdot.g_dot));
+
+    return (PhysicalState){
+        .r = R,
+        .v = V,
+    };
 }
 
 Vector3 perifocal_coords_to_inertial_coords(Vector2 pq,float long_of_asc_node,float arg_of_periapsis, float inclination) {

@@ -24,6 +24,17 @@ typedef struct PhysicalState {
     Vector3 v; // Velocity in inertial frame
 } PhysicalState;
 
+typedef struct LagrangeCoefs {
+    float f; // f
+    float g; // g
+} LagrangeCoefs;
+
+// Time derivatives of f and g, f_dot, g_dot
+typedef struct LagrangeTimeDerivs {
+    float f_dot;
+    float g_dot;
+} LagrangeTimeDerivs;
+
 // Mean anomaly as a function of M_naught (Mean anomaly at epoch, t time, t_naught time of M_naught, T orbital period)
 float mean_anom(float M_naught, float t, float t_naught, float T); 
 
@@ -54,6 +65,15 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ);
 // Solves for universal anomaly (algorithm 3.3, curtis D.5)
 // Units: km^0.5
 float solve_universal_anomaly(float dt, float r0, float v0, float a, float grav_param);
+
+// Computes the lagrange coeficients for given universal anomaly, t, etc.
+LagrangeCoefs compute_lagrange_f_g(float univ_anomaly, float t, float r0, float a, float grav_param);
+
+// Computes time derivatives of the lagrange f and g coeficients
+LagrangeTimeDerivs compute_lagrange_fdot_gdot(float univ_anomaly, float t, float r0, float a, float grav_param);
+
+// Computes the position R, and velocity V given an initial position vector R0 and velocity vector V0, after time t
+PhysicalState rv_from_r0v0(Vector3 r0, Vector3 v0, float t, float grav_param);
 
 // Solves keplers equation for the carteesian coords in inertial frame
 // with proper rotations applied (inclination, arg periapsis, long asc, etc)
