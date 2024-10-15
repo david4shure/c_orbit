@@ -137,7 +137,7 @@ int main(void) {
     Vector3 moon_position = { 20000.0f, 0.0f, -10.0f };
 
     // Approximate ECI velocity of the Moon (in km/s)
-    Vector3 moon_velocity = { 4.0, 0.0, 10.0};
+    Vector3 moon_velocity = { 4.0, 0.0, 5.0};
 
     PhysicalState state = {moon_position,moon_velocity};
     OrbitalElements eles = orb_elems_from_rv(state, 398600.4418);
