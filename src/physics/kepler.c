@@ -94,27 +94,18 @@ float kepler_H_newt(float e, float M) {
     return F;
 }
 
-// Stumpff function C(z)
 float stump_c(float z) {
-    if (z > 1e-6) {
-        return (1.0 - cos(sqrt(z))) / z;
-    } else if (z < -1e-6) {
-        return (cosh(sqrt(-z)) - 1.0) / (-z);
-    } else {
-        return 0.5;
-    }
+    if (fabs(z) < 1e-8) return 0.5;
+    else if (z > 0) return (1 - cos(sqrt(z))) / z;
+    else return (cosh(sqrt(-z)) - 1) / (-z);
 }
 
-// Stumpff function S(z)
 float stump_s(float z) {
-    if (z > 1e-6) {
-        return (sqrt(z) - sin(sqrt(z))) / (sqrt(z * z * z));
-    } else if (z < -1e-6) {
-        return (sinh(sqrt(-z)) - sqrt(-z)) / sqrt((-z) * (-z) * (-z));
-    } else {
-        return 1.0 / 6.0;
-    }
+    if (fabs(z) < 1e-8) return 1.0 / 6.0;
+    else if (z > 0) return (sqrt(z) - sin(sqrt(z))) / (sqrt(z * z * z));
+    else return (sinh(sqrt(-z)) - sqrt(-z)) / sqrt((-z) * (-z) * (-z));
 }
+
 
 float clampf(float x, float min, float max) {
     if (x < min) {
@@ -326,46 +317,59 @@ Vector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, float M_naught, fl
     return (Vector2){.x=x,.y=y};
 }
 
-float solve_universal_anomaly(float dt, float r0, float v0, float a_inv, float grav_param) {
-    // User is passing in real semi-major axis, we calculate inv_a
-    float error = 1e-5;
-    int max_iters = 50;
+float solve_universal_anomaly(float dt, float r0, float vr0, float a_inv, float grav_param) {
+    float error = 1e-8;  // Tolerance
+    int max_iters = 150;  // Maximum iterations
 
-    // ... Starting value for x:
-    float x = sqrt(grav_param) * fabs(a_inv) * dt;
+    // Initial guess for x
+    float x = sqrt(grav_param) * dt / r0;
+
+    float lambda = 1e-3;  // Levenberg-Marquardt damping parameter
+    float nu = 2.0;       // Multiplicative factor for lambda adjustment
 
     int n = 0;
     float ratio = 1.0;
     float C, S, F, dFdx = 0.0;
 
     while (fabs(ratio) > error && n <= max_iters) {
-        //Debug("fabs(ratio) = %.5f, error = %.5f\n",fabs(ratio),error);
+        // Calculate Stumpff functions
+        C = stump_c(a_inv * x * x);
+        S = stump_s(a_inv * x * x);
 
-        // Calculate stumps and stumpc
-        C = stump_c(a_inv*x*x);
-        S = stump_s(a_inv*x*x);
+        // Estimate F using radial velocity
+        F = ((r0 * vr0) / sqrt(grav_param)) * x * x * C + (1.0 - a_inv * r0) * x * x * x * S + r0 * x - sqrt(grav_param) * dt;
 
-        // Estimate F
-        F = ((r0 * v0) / sqrt(grav_param)) * x * x * C + (1.0 - a_inv * r0) * x * x * x * S + r0 * x - sqrt(grav_param) * dt;
-        // Estimate dF / dt
-        dFdx = (r0 * v0 / sqrt(grav_param)) * x * (1.0 - a_inv * x * x * S) + (1.0 - a_inv * r0) * x * x * C + r0;
+        // Estimate dF / dx
+        dFdx = (r0 * vr0 / sqrt(grav_param)) * x * (1.0 - a_inv * x * x * S) + (1.0 - a_inv * r0) * x * x * C + r0;
 
-        // Update ratio
-        ratio = F/dFdx;
+        // Levenberg-Marquardt step size control
+        float dFdx_mod = dFdx + lambda * dFdx;  // Modify gradient with damping
+        ratio = F / dFdx_mod;  // Update ratio
 
-        // Update x
-        x = x - ratio;
+        // Check if the new guess is better
+        float x_new = x - ratio;
+        float F_new = ((r0 * vr0) / sqrt(grav_param)) * x_new * x_new * C + (1.0 - a_inv * r0) * x_new * x_new * x_new * S + r0 * x_new - sqrt(grav_param) * dt;
 
-        // Increment n
+        if (fabs(F_new) < fabs(F)) {
+            // If improved, decrease lambda
+            lambda /= nu;
+            x = x_new;  // Accept new x
+        } else {
+            // If not, increase lambda
+            lambda *= nu;
+        }
+
+        // Increment iteration counter
         n++;
     }
 
     if (n > max_iters) {
-        Warn("solve_universal_anomaly() reached max iterations without convergance, n = %i\n",n);
+        Warn("solve_universal_anomaly() reached max iterations without convergence, n = %i\n", n);
     }
 
     return x;
 }
+
 
 LagrangeCoefs compute_lagrange_f_g(float univ_anomaly, float t, float r0, float a_inv, float grav_param) {
     float z = a_inv * univ_anomaly * univ_anomaly;
