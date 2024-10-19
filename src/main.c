@@ -11,14 +11,16 @@
 *
 ********************************************************************************************/
 
-#include "time.h"
 #include "camera.h"
+#include "physics/propagation.h"
+#include "time.h"
 #include "raylib.h"
 #include "raymath.h"
 #include "rcamera.h"
 #include "rlgl.h"
 #include <stdio.h>
 #include "raygui.h"
+#include "math.h"
 
 #include "physics/constants.h"
 #include "physics/time.h"
@@ -39,91 +41,30 @@ bool is_object_behind_camera(Vector3 cam_pos, Vector3 cam_target, Vector3 obj_po
     return dot < 0;
 }
 
-void draw_orbital_lines(PhysicalState rv, Camera* camera) {
-    int num_lines = 300;
-
-    void* orbital_positions = darray_init(num_lines, sizeof(Vector3));
-
-    Debug("Malloc ptr = %p\n",orbital_positions);
-
-    // Draw num_lines lines (+1)
-    float increment = 1000.0;
-    int i = 0;
-
-    // Iterate through entire orbit
-    for (float t = -100000.0; t < 100000.0; t += increment) {
-        i += 1;
-
-        PhysicalState rv_orb = rv_from_r0v0(rv.r,rv.v,t,398600.4418);
-
-        Vector3 moon_pos_physical = rv_orb.r;
-        
-        // Push computed vector
-        orbital_positions = darray_push(orbital_positions,(void*)&moon_pos_physical);
-    }
+void draw_orbital_lines(void* orbital_positions) {
+    printf("Length of positions = %d\n",darray_length(orbital_positions));
 
     Vector3* prev_pos = NULL;
     Vector3* current_pos = NULL;
 
     // Now iterate over our darray and draw lines
-    for (int i = 0; i < darray_length(orbital_positions)-1; i++) {
-        if (i == 0) {
-            prev_pos = (Vector3*)darray_get(orbital_positions, 0);
+    for (int i = 0; i < darray_length(orbital_positions); i++) {
+        if (i==0) {
+            prev_pos = darray_get(orbital_positions, i);
             continue;
         }
 
-        // Wrap around and connect last point to first to complete the ellipse
-        if (i >= darray_length(orbital_positions)-1) {
-            current_pos = (Vector3*)darray_get(orbital_positions, 0);
-        } else {
-            current_pos = (Vector3*)darray_get(orbital_positions, i);
-        }
+        current_pos = darray_get(orbital_positions, i);
+        
+        // Draw the dang line
+        DrawLine3D(vector_from_physical_to_world(*current_pos), vector_from_physical_to_world(*prev_pos), BLUE);
 
-        // Convert vector from physical dimensions to render dimensions
-        Vector3 world_curr = vector_from_physical_to_world(*prev_pos);
-        Vector3 world_prev = vector_from_physical_to_world(*current_pos);
-
-        // Actually draw the line
-        DrawLine3D(world_curr, world_prev, RED);
-
-        // Wrap
         prev_pos = current_pos;
     }
 
-    /* Vector3* curr_pos = NULL; */
-    /* for (int j = 0; j < darray_length(orbital_positions); j++) { */
-    /*     if (j == 0) 
-    /*         prev_pos = (Vector3*)darray_get(orbital_positions, 0); */
-    /*         continue; */
-    /*     } */
-
-    /*     curr_pos = (Vector3*)darray_get(orbital_positions, j); */
-
-    /*     // Wrap around and connect last point to first to complete the ellipse */
-    /*     if (j >= darray_length(orbital_positions)-1) { */
-    /*         curr_pos = (Vector3*)darray_get(orbital_positions, 0); */
-    /*     } else { */
-    /*         curr_pos = (Vector3*)darray_get(orbital_positions, j); */
-    /*     } */
-
-    /*     // Convert vector from physical dimensions to render dimensions */
-    /*     Vector3 world_j = vector_from_physical_to_world(*prev_pos); */
-    /*     Vector3 world_k = vector_from_physical_to_world(*curr_pos); */
-
-    /*     Color backside  = (Color){.r=100.0,.g=0,.b=120,.a=50}; */
-    /*     Color frontside = (Color){.r=100.0,.g=100,.b=120,.a=50}; */
-
-    /*     // Draw the symmetry line */
-    /*     DrawTriangle3D((Vector3){.x=0.0,.y=0.0,.z=0.0}, world_j, world_k, frontside); */
-    /*     DrawTriangle3D((Vector3){.x=0.0,.y=0.0,.z=0.0}, world_k, world_j, backside); */
-
-    /*     prev_pos = curr_pos; */
-    /* } */
-
-    // Draw t=0 line
-    darray_free(orbital_positions);
+    // Free our array
+    //darray_free(orbital_positions);
 }
-
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -133,21 +74,30 @@ int main(void) {
     InitializeLogger(LOG_LEVEL);
 
     // Approximate ECI position of the Moon (in km)
-    
-    Vector3 moon_position = { 20000.0f, 0.0f, -10.0f };
+    Vector3 moon_position = { 200000.0f, -5000.0f, -100.0f };
 
     // Approximate ECI velocity of the Moon (in km/s)
-    Vector3 moon_velocity = { 4.0, 0.0, 6.0};
+    Vector3 moon_velocity = { -1.8, -1.3, 1.0};
 
-    PhysicalState state = {moon_position,moon_velocity};
-    OrbitalElements eles = orb_elems_from_rv(state, 398600.4418);
-
-    Debug("Eccentricity = %.2f\n",eles.eccentricity);
-
-    PhysicsTimeClock clock = { .tick_interval_seconds = 86400, .mode = Elapsing, .scale = 1.0, .delta_seconds = 0.0, .clock_seconds = -100000.0};
+    Log("Earth mass kg = %.2f\n",EARTH_MASS_KG);
+    PhysicalState RV = {
+        .r = moon_position,
+        .v = moon_velocity,
+        .mass_of_parent = EARTH_MASS_KG,
+        .mass_of_grandparent = SUN_MASS_KG,
+    };
 
     float M_naught = 2.35585;
     float t_naught = 0.0;
+    OrbitalElements eles = orb_elems_from_rv(RV,M_naught,t_naught);
+
+    print_orbital_elements(eles);
+
+    print_physical_state(RV);
+
+    Debug("Eccentricity = %.2f\n",eles.eccentricity);
+
+    PhysicsTimeClock clock = { .tick_interval_seconds = 86400, .mode = Elapsing, .scale = 10000.0, .delta_seconds = 0.0, .clock_seconds = 0.0};
 
     //--------------------------------------------------------------------------------------
     const int screenWidth = 1500;
@@ -167,10 +117,9 @@ int main(void) {
     float time = 0.0;
 
     // Spherical Camera coordinates
-    float r = 1000.0;
+    float r = 100000.0;
     float theta = 0.0;
     float phi = 0.0;
-
 
     Matrix matProj = MatrixPerspective(camera.fovy*DEG2RAD, ((double)GetScreenWidth()/(double)GetScreenHeight()), 0.1,10000000.0);
 
@@ -179,30 +128,28 @@ int main(void) {
     SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
     float delta;
+    print_physical_state(RV);
 
+    void* orbital_lines = propagate_orbit(RV, clock.clock_seconds, M_naught, t_naught);
     // Main game loop
     while (!WindowShouldClose())        // Detect window close button or ESC key
     {
         time = GetTime();
         delta = GetFrameTime();
 
-        UpdatePhysicsClock(&clock, delta*1000);
+        UpdatePhysicsClock(&clock, delta);
 
-        PhysicalState RV = rv_from_r0v0(moon_position, moon_velocity, clock.clock_seconds, 398600.4418); 
-    
-        Vector3 moon_pos_physical = RV.r;
+        RV = rv_from_r0v0(RV,clock.delta_seconds); 
 
-        Log("Moon pos = (%.3f,%.3f,%.3f)\n",moon_pos_physical.x,moon_pos_physical.y,moon_pos_physical.z);
-
-        OrbitalElements eles = orb_elems_from_rv(state, 398600.4418);
+        eles = orb_elems_from_rv(RV, M_naught, t_naught);
         print_orbital_elements(eles);
-        PhysicalState RV_naught = rv_from_orb_elems(eles);
+        moon_position = RV.r;
+        moon_velocity = RV.v;
 
-        Log("Recomputed Moon pos = (%.3f,%.3f,%.3f)\n",RV_naught.r.x,RV_naught.r.y,RV_naught.r.z);
-
-        Vector3 moon_pos_world = vector_from_physical_to_world(moon_pos_physical);
+        Vector3 moon_pos_world = vector_from_physical_to_world(moon_position);
         // sqrt((x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2)
         float dist = Vector3Distance(moon_pos_world, camera.position);
+
         Vector3 t0_line = vector_from_physical_to_world(solve_kepler_ellipse_inertial(eles, 0.0, 0.0, 0.0));
         Vector3 t0_norm = Vector3Normalize(t0_line);
         Vector3 t0_farther_out = Vector3Add(t0_line, Vector3Scale(t0_norm,200));
@@ -214,14 +161,15 @@ int main(void) {
         //----------------------------------------------------------------------------------
         BeginDrawing();
 
+
             ClearBackground(BLACK);
 
             SphericalCameraSystem(&r, &theta, &phi, &camera);
 
             BeginMode3D(camera);
-                rlSetMatrixProjection(matProj);
+                draw_orbital_lines(orbital_lines);
 
-                draw_orbital_lines(state, &camera);
+                rlSetMatrixProjection(matProj);
 
                 Vector3 sphere_pos = {0.0,0.0,0.0};
 

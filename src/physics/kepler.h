@@ -4,10 +4,18 @@
 
 // We do everything in radians here
 typedef struct OrbitalElements {
-    float semimajor_axis; // semi-major axis
-    float semilatus_rectum; // p, semilatus rectum
-    float eccentricity; // eccentricity
+    // Physical parameters of an orbit
+    float mass_of_parent; // Mass of the central body KG e.g. Earth
+    float mass_of_grandparent; // Mass of the central body's central body KG e.g. Sun
+    float grav_param; // Specific gravitational parameter for central body IE G * M
+    
+    // Geometrical parameters of an orbit
+    float semimajor_axis; // semi-major axis KMs
+    float semilatus_rectum; // p, semilatus rectum KMs
+    float eccentricity; // eccentricity (unitless, ratio)
     float mean_anomaly; // Mean anomaly (Rads)
+    float mean_anomaly_at_epoch; // Mean anomaly at epoch (Rads)
+    float time_at_epoch; // time in seconds at epoch
     float eccentric_anomaly; // Eccentric Anomaly (Rads)
     float hyperbolic_anomaly; // Hyperbolic Anomaly (Rads)
     float true_anomaly; // True anomaly (Rads)
@@ -15,14 +23,16 @@ typedef struct OrbitalElements {
     float long_of_asc_node; // Longitude of the ascending node (Rads)
     float inclination; // Inclination (Rads)
     float period; // Orbital Period
-    float grav_param; // Specific gravitational parameter for central body
     float ang_momentum; // Angular momentum (km^2/s)
     Vector3 ang_momentum_vec; // Angular momentum vector
+    float mean_motion; // Mean motion = sqrt(grav_param/a^3)
 } OrbitalElements;
 
 typedef struct PhysicalState {
     Vector3 r; // Position in inertial frame 
     Vector3 v; // Velocity in inertial frame
+    float mass_of_parent; // Mass of the central body KG e.g. Earth
+    float mass_of_grandparent; // Mass of the central body's central body KG e.g. Sun
 } PhysicalState;
 
 typedef struct LagrangeCoefs {
@@ -35,6 +45,13 @@ typedef struct LagrangeTimeDerivs {
     float f_dot;
     float g_dot;
 } LagrangeTimeDerivs;
+
+// Contains time info about what the time at periapsis will be
+typedef struct TimeOfPassage {
+    float time_at_point; // seconds
+    float duration_until_point; // seconds
+    float current_time; // seconds
+} TimeOfPassage;
 
 // Mean anomaly as a function of M_naught (Mean anomaly at epoch, t time, t_naught time of M_naught, T orbital period)
 float mean_anom(float M_naught, float t, float t_naught, float T); 
@@ -54,6 +71,9 @@ float ecc_anom_to_true_anom(float eccentricity, float eccentric_anomaly);
 // Eccentric anomaly to mean anomaly
 float ecc_anom_to_mean_anom(float eccentricity, float eccentric_anomaly);
 
+// Computes mean anomaly from a true anomaly
+float true_anom_to_mean_anom(float true_anomaly, float eccentricity);
+
 // Solves for the eccentric anomaly from the following eq.
 float solve_kepler_eq_ellipse(float e, float M, int max_iters);
 
@@ -66,8 +86,17 @@ float stump_s(float z);
 // Computes the distance of body from center point
 float distance_sphere_coords(float e, float a, float E);
 
+// Computes the time until the desired_true_anomaly given then orbital elements and current time
+TimeOfPassage compute_time_until(OrbitalElements oe, float desired_true_anomaly, float t);
+
+// Gives the distance at which the sphere of influence begins/ends for the inner body
+float calculate_sphere_of_influence_r(float a, float mass_of_body, float mass_of_satellite);
+
+// Compute the time till periapsis for an orbit
+TimeOfPassage compute_time_of_passage(OrbitalElements oe, float grav_param, float t);
+
 // Gets orbital elements in struct form from R (position) V (velcoity) vectors.
-OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ);
+OrbitalElements orb_elems_from_rv(PhysicalState rv, float mean_anomaly_at_epoch, float time_at_epoch);
 
 // Solves for universal anomaly (algorithm 3.3, curtis D.5)
 // Units: km^0.5
@@ -80,7 +109,7 @@ LagrangeCoefs compute_lagrange_f_g(float univ_anomaly, float t, float r0, float 
 LagrangeTimeDerivs compute_lagrange_fdot_gdot(float univ_anomaly, float t, float r0, float a, float grav_param);
 
 // Computes the position R, and velocity V given an initial position vector R0 and velocity vector V0, after time t
-PhysicalState rv_from_r0v0(Vector3 r0, Vector3 v0, float t, float grav_param);
+PhysicalState rv_from_r0v0(PhysicalState rv, float t);
 
 // Solves keplers equation for the carteesian coords in inertial frame
 // with proper rotations applied (inclination, arg periapsis, long asc, etc)
@@ -101,6 +130,9 @@ Vector3 vector_from_physical_to_world(Vector3 vec);
 
 // Prints orbital elements duh
 void print_orbital_elements(OrbitalElements e);
+
+// Prints physical state duh
+void print_physical_state(PhysicalState rv);
 
 // Applies necessary transforms to convert perifocal coords to inertial coords
 Vector3 perifocal_coords_to_inertial_coords(Vector2 pq,float long_of_asc_node,float arg_of_periapsis, float inclination);

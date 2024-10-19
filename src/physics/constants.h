@@ -3,6 +3,18 @@
 #ifndef PHYSICAL_CONSTANTS
 #define PHYSICAL_CONSTANTS
 
+// Universal gravitational constant
+static const float G = 6.67430e-20; // km3kg−1s−2
+
+// Earth mass kg
+static const double EARTH_MASS_KG = 5.972e+24;
+
+// Moon mass kg
+static const double MOON_MASS_KG = 7.348e+22;
+
+// Sun mass kg
+static const double SUN_MASS_KG = 1.989e+30;
+
 // 20 km to 1 render unit
 static const float RENDER_UNITS_TO_KM = 2.0;
 

@@ -1,9 +1,11 @@
 #include "kepler.h"
 #include "math.h"
 #include "raymath.h"
+#include <X11/X.h>
 #include <math.h>
 #include "constants.h"
 #include "../utils/logger.h"
+#include "assert.h"
 
 float mean_anom(float mean_anomaly_at_epoch, float time, float time_at_epoch, float orbital_period) {
     // First calculate mean motion
@@ -37,6 +39,11 @@ float true_anom_to_hyperbolic_anom(float true_anomaly, float eccentricity) {
     float H_2 = atanh(tanh_H_2);
 
     return 2.0 * H_2;
+}
+
+float true_anom_to_mean_anom(float true_anomaly, float eccentricity) {
+    float E = true_anom_to_ecc_anom(true_anomaly, eccentricity);
+    return ecc_anom_to_mean_anom(eccentricity, E);
 }
 
 float true_anom_to_ecc_anom(float true_anomaly, float eccentricity) {
@@ -140,12 +147,58 @@ float clampf(float x, float min, float max) {
     }   
 }
 
+float calculate_sphere_of_influence_r(float a, float mass_of_parent, float mass_of_grandparent) {
+    return a * powf(mass_of_parent/mass_of_grandparent,2.0/5.0);
+}
+
+TimeOfPassage compute_time_until(OrbitalElements oe, float desired_true_anomaly, float t) {
+    // First check orbit type
+    if (oe.eccentricity < 1.0) {
+        // t-M/n = t_naught !!
+        float M = true_anom_to_mean_anom(desired_true_anomaly, oe.eccentricity);
+        return (TimeOfPassage) {
+            .current_time = t,
+            .time_at_point = (oe.mean_anomaly)/oe.mean_motion,
+        };
+    } else if (oe.eccentricity == 1.0) { // Parabolic orbits
+        // D is helper variable in barkers eq
+        float D = tan(desired_true_anomaly/2);
+
+        // Solve barkers equation 
+        // Time until periapsis (Δt) in a parabolic orbit:
+        // Δt = t0 - t = -(1/2) * sqrt(p^3 / (2 * μ)) * (D + (D^3 / 3))
+        // where D = tan(θ / 2) and p is the semi-latus rectum.
+        float duration_until_periapsis = -0.5 * sqrt(pow(oe.semilatus_rectum,3)/(2*oe.grav_param)) * (D + pow(D,3)/3);
+
+        return (TimeOfPassage) {
+            .time_at_point = t + duration_until_periapsis,
+            .current_time = t,
+            .duration_until_point = duration_until_periapsis,
+        };
+    } else { // Hyperbolic orbits
+        // Time until periapsis (Δt) in a hyperbolic orbit:
+        // Δt = t0 - t = -(sqrt(μ) / (-a)^(3/2)) * (e * sinh(H) - H)
+        float duration_until_periapsis = -(sqrt(oe.grav_param) / pow(-oe.semimajor_axis,1.5)) * (oe.eccentricity * sinh(oe.hyperbolic_anomaly) - oe.hyperbolic_anomaly);
+
+        // M=esinh(F)−F
+        float M = oe.eccentricity * sinh(oe.hyperbolic_anomaly) - oe.hyperbolic_anomaly;
+
+        return (TimeOfPassage) {
+            .time_at_point = t+duration_until_periapsis,
+            .current_time = t,
+            .duration_until_point = duration_until_periapsis,
+        };
+    }
+}
+
 float distance_sphere_coords(float e, float a, float E) {
     return a * (1. - e * cos(E));
 }
 
-OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ) {
+OrbitalElements orb_elems_from_rv(PhysicalState rv, float mean_anomaly_at_epoch, float time_at_epoch) {
     float eps = 1.e-10;
+
+    float grav_param = G * rv.mass_of_parent;
 
     // R,V position velocity vectors
     Vector3 R = rv.r;
@@ -158,8 +211,10 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ) {
     // R dot V / r
     float vr = Vector3DotProduct(R,V)/r;
 
+    // Angular momentum vector
     Vector3 H = Vector3CrossProduct(R,V);
 
+    // Angular momentum
     float h = Vector3Length(H);
 
     // inclination
@@ -184,9 +239,9 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ) {
     }
 
     // Eccentricity Vector
-    float term1 = (v*v - μ/r);
+    float term1 = (v*v - grav_param/r);
 
-    float inv_μ = 1.0f / μ;
+    float inv_μ = 1.0f / grav_param;
 
     Vector3 E = Vector3Scale((Vector3Subtract(Vector3Scale(R,term1),Vector3Scale(V,r*vr))),inv_μ);
 
@@ -229,7 +284,7 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ) {
     }
 
     // Semi major axis
-    float a = h * h / μ / (1 - e * e);
+    float a = h * h / grav_param / (1 - e * e);
     
     // Compute eccentric anomaly + mean anomaly using helper functions
 
@@ -242,7 +297,7 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ) {
         Ea = true_anom_to_ecc_anom(Ta, e);
         Ma = ecc_anom_to_mean_anom(Ea, e);
     }
-    float T = 2.0 * PI * sqrt(pow(a, 3) / μ); 
+    float T = 2.0 * PI * sqrt(pow(a, 3) / grav_param); 
 
     // Return elements
     OrbitalElements elems = { 
@@ -251,14 +306,20 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, float μ) {
         .eccentric_anomaly = Ea,
         .hyperbolic_anomaly = Ha,
         .mean_anomaly = Ma,
+        .mean_anomaly_at_epoch = mean_anomaly_at_epoch,
+        .time_at_epoch = time_at_epoch,
         .inclination = i,
         .long_of_asc_node = Ra,
-        .grav_param = μ,
+        .grav_param = grav_param,
         .true_anomaly = Ta,
         .arg_of_periapsis = w,
         .period = T,
         .ang_momentum = h,
         .ang_momentum_vec = H,
+        .semilatus_rectum = h * h / grav_param,
+        .mean_motion = sqrt(grav_param/(powf(fabs(a),3.0))),
+        .mass_of_parent = rv.mass_of_parent,
+        .mass_of_grandparent = rv.mass_of_grandparent,
     };
 
     return elems;
@@ -278,6 +339,13 @@ void print_orbital_elements(OrbitalElements elems) {
     Debug("arg of periapsis = %f degrees\n", elems.arg_of_periapsis * RAD2DEG);
     Debug("long of asc node = %f degrees\n", elems.long_of_asc_node * RAD2DEG);
     Debug("angular momentum h = %f\n", elems.ang_momentum * RAD2DEG);
+    Debug("-------\n");
+}
+
+void print_physical_state(PhysicalState rv) {
+    Debug("------\n");
+    Debug("R = (%.3f,%.3f,%.3f)\n",rv.r.x,rv.r.y,rv.r.z);
+    Debug("V = (%.3f,%.3f,%.3f)\n",rv.v.x,rv.v.y,rv.v.z);
     Debug("-------\n");
 }
 
@@ -393,7 +461,7 @@ float solve_universal_anomaly(float dt, float r0, float vr0, float a_inv, float 
     }
 
     if (n > max_iters) {
-        //Warn("solve_universal_anomaly() reached max iterations without convergence, n = %i\n", n);
+        Warn("solve_universal_anomaly() reached max iterations without convergence, n = %i\n", n);
     }
 
     return x;
@@ -425,11 +493,14 @@ LagrangeTimeDerivs compute_lagrange_fdot_gdot(float univ_anomaly, float r, float
         .g_dot = g_dot,
     };
 }
-PhysicalState rv_from_r0v0(Vector3 R0, Vector3 V0, float t, float grav_param) {
-    float r0 = Vector3Length(R0);
-    float v0 = Vector3Length(V0);
 
-    float vr0 = Vector3DotProduct(R0, V0) / r0;
+PhysicalState rv_from_r0v0(PhysicalState rv, float t) {
+    float grav_param = G * rv.mass_of_parent;
+
+    float r0 = Vector3Length(rv.r);
+    float v0 = Vector3Length(rv.v);
+
+    float vr0 = Vector3DotProduct(rv.r, rv.v) / r0;
 
     // %...Reciprocal of the semimajor axis (from the energy equation):
     float alpha = 2/r0 - v0*v0/grav_param;
@@ -441,18 +512,20 @@ PhysicalState rv_from_r0v0(Vector3 R0, Vector3 V0, float t, float grav_param) {
     LagrangeCoefs fg = compute_lagrange_f_g(x, t, r0, alpha, grav_param);
 
     // Final position vector
-    Vector3 R = Vector3Add(Vector3Scale(R0,fg.f), Vector3Scale(V0,fg.g));
+    Vector3 R = Vector3Add(Vector3Scale(rv.r,fg.f), Vector3Scale(rv.v,fg.g));
 
     // Compute length of R
     float r = Vector3Length(R);
 
     LagrangeTimeDerivs fdotgdot = compute_lagrange_fdot_gdot(x, r, r0, alpha, grav_param);
 
-    Vector3 V = Vector3Add(Vector3Scale(R0,fdotgdot.f_dot), Vector3Scale(V0,fdotgdot.g_dot));
+    Vector3 V = Vector3Add(Vector3Scale(rv.r,fdotgdot.f_dot), Vector3Scale(rv.v,fdotgdot.g_dot));
 
     return (PhysicalState){
         .r = R,
         .v = V,
+        .mass_of_parent = rv.mass_of_parent,
+        .mass_of_grandparent = rv.mass_of_grandparent,
     };
 }
 

@@ -1,21 +1,16 @@
 #include "time.h"
 #include "raylib.h"
+#include "assert.h"
 
 void UpdatePhysicsClockElapsing(PhysicsTimeClock *clock, float raylib_delta_seconds) {
-    if (clock->mode == StopTick) {
-        return;
-    }
+    assert(clock->mode != StopTick);
 
     clock->delta_seconds = clock->scale * raylib_delta_seconds;
     clock->clock_seconds += clock->delta_seconds;
 }
 
 void UpdatePhysicsClockStopTick(PhysicsTimeClock *clock, float raylib_delta_seconds) {
-    // TODO: come back and fix this and integrate stop tick updates here with keyboard inputs
-    // Nothing to do update if there is stop tick
-    if (clock->mode == Elapsing) {
-        return;
-    }
+    assert(clock->mode != Elapsing);
 
     // Jump forward/back clock->tick_interval_seconds
     if(IsKeyDown(KEY_RIGHT)) {
