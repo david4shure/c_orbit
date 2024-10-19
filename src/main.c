@@ -77,7 +77,8 @@ int main(void) {
     Vector3 moon_position = { 200000.0f, -5000.0f, -100.0f };
 
     // Approximate ECI velocity of the Moon (in km/s)
-    Vector3 moon_velocity = { -1.8, -1.3, 1.0};
+    Vector3 moon_velocity = { 0.0, 0.0, 2.0};
+
 
     Log("Earth mass kg = %.2f\n",EARTH_MASS_KG);
     PhysicalState RV = {
@@ -129,8 +130,10 @@ int main(void) {
     //--------------------------------------------------------------------------------------
     float delta;
     print_physical_state(RV);
-
     void* orbital_lines = propagate_orbit(RV, clock.clock_seconds, M_naught, t_naught);
+    float r_at_sphere_of_influence = calculate_sphere_of_influence_r(149597870.7, eles.mass_of_parent, eles.mass_of_grandparent);
+    float r_at_soi_world_coords = r_at_sphere_of_influence * KM_TO_RENDER_UNITS;
+
     // Main game loop
     while (!WindowShouldClose())        // Detect window close button or ESC key
     {
@@ -178,6 +181,7 @@ int main(void) {
                 DrawGridOfColor(250,50000,grid_color); // Draw ground
 
                 DrawSphereWires(moon_pos_world,(MOON_RADIUS_KM * KM_TO_RENDER_UNITS),10,10,GRAY);
+                DrawSphereWires(sphere_pos,(r_at_soi_world_coords),10,10,PINK);
             EndMode3D();
 
             float max_distance = 5000.0;

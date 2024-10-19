@@ -178,15 +178,17 @@ TimeOfPassage compute_time_until(OrbitalElements oe, float desired_true_anomaly,
     } else { // Hyperbolic orbits
         // Time until periapsis (Δt) in a hyperbolic orbit:
         // Δt = t0 - t = -(sqrt(μ) / (-a)^(3/2)) * (e * sinh(H) - H)
-        float duration_until_periapsis = -(sqrt(oe.grav_param) / pow(-oe.semimajor_axis,1.5)) * (oe.eccentricity * sinh(oe.hyperbolic_anomaly) - oe.hyperbolic_anomaly);
 
-        // M=esinh(F)−F
-        float M = oe.eccentricity * sinh(oe.hyperbolic_anomaly) - oe.hyperbolic_anomaly;
+        // Compute the desired true anomaly at the sphere of influence
+        float hyperbolic_anomaly = true_anom_to_hyperbolic_anom(desired_true_anomaly, oe.eccentricity);
+        float mean_anomaly_at_sof = hyperbolic_anom_to_mean_anom(hyperbolic_anomaly, oe.eccentricity);
+
+        float time_till_sof = ((mean_anomaly_at_sof - oe.mean_anomaly) / oe.mean_motion) + t;
 
         return (TimeOfPassage) {
-            .time_at_point = t+duration_until_periapsis,
+            .time_at_point = t+time_till_sof,
             .current_time = t,
-            .duration_until_point = duration_until_periapsis,
+            .duration_until_point = time_till_sof,
         };
     }
 }
