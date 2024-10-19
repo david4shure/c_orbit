@@ -79,7 +79,6 @@ int main(void) {
     // Approximate ECI velocity of the Moon (in km/s)
     Vector3 moon_velocity = { 0.0, 0.0, 2.0};
 
-
     Log("Earth mass kg = %.2f\n",EARTH_MASS_KG);
     PhysicalState RV = {
         .r = moon_position,
@@ -130,9 +129,10 @@ int main(void) {
     //--------------------------------------------------------------------------------------
     float delta;
     print_physical_state(RV);
-    void* orbital_lines = propagate_orbit(RV, clock.clock_seconds, M_naught, t_naught);
     float r_at_sphere_of_influence = calculate_sphere_of_influence_r(149597870.7, eles.mass_of_parent, eles.mass_of_grandparent);
     float r_at_soi_world_coords = r_at_sphere_of_influence * KM_TO_RENDER_UNITS;
+
+    void* orbital_lines;
 
     // Main game loop
     while (!WindowShouldClose())        // Detect window close button or ESC key
@@ -142,7 +142,11 @@ int main(void) {
 
         UpdatePhysicsClock(&clock, delta);
 
-        RV = rv_from_r0v0(RV,clock.delta_seconds); 
+        orbital_lines = propagate_orbit(RV, 0.0, M_naught, t_naught);
+
+        Debug("len(orbital_lines)=%d\n",darray_length(orbital_lines));
+
+        RV = rv_from_r0v0(RV,clock.clock_seconds); 
 
         eles = orb_elems_from_rv(RV, M_naught, t_naught);
         print_orbital_elements(eles);
@@ -170,10 +174,11 @@ int main(void) {
             SphericalCameraSystem(&r, &theta, &phi, &camera);
 
             BeginMode3D(camera);
-                draw_orbital_lines(orbital_lines);
-
                 rlSetMatrixProjection(matProj);
 
+                draw_orbital_lines(orbital_lines);
+
+                darray_free(orbital_lines);
                 Vector3 sphere_pos = {0.0,0.0,0.0};
 
                 DrawSphereWires(sphere_pos,EARTH_RADIUS_KM * KM_TO_RENDER_UNITS,10,10,SKYBLUE);

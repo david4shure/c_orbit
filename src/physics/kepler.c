@@ -1,7 +1,6 @@
 #include "kepler.h"
 #include "math.h"
 #include "raymath.h"
-#include <X11/X.h>
 #include <math.h>
 #include "constants.h"
 #include "../utils/logger.h"

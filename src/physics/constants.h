@@ -24,5 +24,6 @@ static const float KM_TO_RENDER_UNITS = 1/RENDER_UNITS_TO_KM;
 // Earth radius km
 static const float EARTH_RADIUS_KM = 6378.137;
 static const float MOON_RADIUS_KM = 1737.4;
+static const float EARTH_SEMIMAJOR_AXIS_KM = 149597870.7;
 
 #endif // PHYSICAL_CONSTANTS
