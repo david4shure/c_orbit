@@ -2,6 +2,7 @@
 #include "raylib.h"
 #include "utils/rlutil.h"
 #include "math.h"
+#include "utils/logger.h"
 
 #ifdef __APPLE__
 #define SCROLL_FACTOR 0.01
@@ -15,15 +16,21 @@ void SphericalCameraSystem(float *r, float *theta, float *phi, Camera3D *camera)
     Vector2 mousePositionDelta = GetMouseDelta();
     float mouseWheelMove = GetMouseWheelMove();
 
+    Debug("mousePositionDelta=(%.2f,%.2f), mouseWheelMove=%.2f\n",mousePositionDelta.x,mousePositionDelta.y,mouseWheelMove);
+    Debug("Before r=%.2f, theta = %.2f, phi = %.2f\n",*r,*theta,*phi);
+
     *r -= mouseWheelMove * 0.001;
 
     float r_delta = mouseWheelMove * SCROLL_FACTOR;
     
     *r -= r_delta * *r;
-    *theta -= mousePositionDelta.x*0.005f;
-    *phi += mousePositionDelta.y*0.005f;
+    *theta -= mousePositionDelta.x*0.005;
+    *phi -= mousePositionDelta.y*0.005;
 
-    *phi = clampf(*phi,-PI/2+CAMERA_ETA,PI/2.0-CAMERA_ETA);
+    *phi = clampf(*phi,PI/2 + CAMERA_ETA,3 * PI/2-CAMERA_ETA);
+
+    Debug("After r=%.2f, theta = %.2f, phi = %.2f\n",*r,*theta,*phi);
+
 
     camera->position.x = *r*sin(*theta)*cos(*phi);
     camera->position.y = *r*sin(*phi);

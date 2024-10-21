@@ -6,7 +6,6 @@
 #include "assert.h"
 #include "raymath.h"
 #include <stdint.h>
-#include <time.h>
 #include <stdbool.h>
 
 // This function propagates an orbit and figures
@@ -16,12 +15,10 @@
 void* propagate_orbit(PhysicalState rv,float t,float M_naught, float t_naught) {
     OrbitalElements oe = orb_elems_from_rv(rv,M_naught,t_naught);
 
-    if (oe.eccentricity < 1.0) {
+    if (oe.eccentricity < 1.0) { // Ellipse
         return propagate_orbit_ellipse(oe,rv,t);
-    } else if (oe.eccentricity >= 1.0) {
+    } else { // Parabolas / Hyperbolas
         return propagate_orbit_non_ellipse(oe,rv,t);
-    } else {
-        Fatal("Parabola???");
     }
 }
 
@@ -72,20 +69,44 @@ void* propagate_orbit_non_ellipse(OrbitalElements oe, PhysicalState rv, float t)
     return darr;
 }
 
-void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t) {
-    float time_increment = 1.0;
+// Function to compute the new time step based on current velocity magnitude
+double _computeDeltaT(double velocityMagnitude, double scalingFactor) {
+    return scalingFactor / (velocityMagnitude * velocityMagnitude);  // Time step inversely proportional to velocity cube
+}
 
+void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t) {
+    PhysicalState init_rv = rv;
     void* darr = darray_init(1000,sizeof(Vector3));
+    float total = 0.0;
+    double scalingFactor = 2000.0;
 
     PhysicalState rv_init = rv;
 
-    // Propagate backwards until we hit SOI
-    float time = t;
-    for (int t = time; t < 10000.0; t += time_increment) {
-        rv = rv_from_r0v0(rv, time);
+    darr = darray_push(darr, (void*)&rv);
+
+    double speed = Vector3Length(rv.v); 
+    float deltaT = _computeDeltaT(speed, scalingFactor);
+
+    while(total < oe.period) {
+        speed = Vector3Length(rv.v);
+        deltaT = _computeDeltaT(speed, scalingFactor);
+        total += deltaT;
+        
+        rv = rv_from_r0v0(rv, deltaT);
+        OrbitalElements oe = orb_elems_from_rv(rv, 0.0, 0.0);
+
+        if (oe.mean_anomaly >= 2*PI) {
+            break;
+        }
 
         darr = darray_push(darr,(void*)&rv);
     }
+
+    Debug("r=(%.2f,%.2f,%.2f)\n",rv.r.x,rv.r.y,rv.r.z);
+    Debug("v=(%.2f,%.2f,%.2f)\n",rv.v.x,rv.v.y,rv.v.z);
+    Debug("Finished propagating orbit, total = %.2f, period = %.2f\n",total,oe.period);
+
+    darr = darray_push(darr,(void*)&init_rv);
 
     return darr;
 }

@@ -20,6 +20,7 @@
 #include "rlgl.h"
 #include <stdio.h>
 #include "raygui.h"
+
 #include "math.h"
 
 #include "physics/constants.h"
@@ -58,6 +59,7 @@ void draw_orbital_lines(void* orbital_positions) {
         
         // Draw the dang line
         DrawLine3D(vector_from_physical_to_world(*current_pos), vector_from_physical_to_world(*prev_pos), BLUE);
+        /* DrawPoint3D(vector_from_physical_to_world(*current_pos),WHITE); */
 
         prev_pos = current_pos;
     }
@@ -74,10 +76,16 @@ int main(void) {
     InitializeLogger(LOG_LEVEL);
 
     // Approximate ECI position of the Moon (in km)
-    Vector3 moon_position = { 200000.0f, -5000.0f, -100.0f };
+    // X =-3.955179399127587E+05 Y =-5.322604944038965E+04 Z = 1.063540351362642E+04
+    // VX= 1.646009855804641E-01 VY=-9.678650138048399E-01 VZ=-8.717381215592590E-02
 
-    // Approximate ECI velocity of the Moon (in km/s)
-    Vector3 moon_velocity = { 0.0, 0.0, 2.0};
+    // Spice 86874.49762938 316748.93677354 172163.38271959
+    // Velocity spice -1.01153543  0.2712671   0.15955594]
+    Vector3 moon_position = {86874.49762938, 316748.93677354, 172163.38271959};
+    Vector3 moon_velocity = {-1.01153543, 0.2712671, 0.15955594};
+
+    /* Vector3 moon_position = {-6045, -3490, 2500}; */
+    /* Vector3 moon_velocity= {-3.457, 6.618, 2.533}; */
 
     Log("Earth mass kg = %.2f\n",EARTH_MASS_KG);
     PhysicalState RV = {
@@ -89,7 +97,7 @@ int main(void) {
 
     float M_naught = 2.35585;
     float t_naught = 0.0;
-    OrbitalElements eles = orb_elems_from_rv(RV,M_naught,t_naught);
+    OrbitalElements eles = orb_elems_from_rv(RV,0.0,0.0);
 
     print_orbital_elements(eles);
 
@@ -97,7 +105,7 @@ int main(void) {
 
     Debug("Eccentricity = %.2f\n",eles.eccentricity);
 
-    PhysicsTimeClock clock = { .tick_interval_seconds = 86400, .mode = Elapsing, .scale = 10000.0, .delta_seconds = 0.0, .clock_seconds = 0.0};
+    PhysicsTimeClock clock = { .tick_interval_seconds = 86400, .mode = Elapsing, .scale = 100.0, .delta_seconds = 0.0, .clock_seconds = 0.0};
 
     //--------------------------------------------------------------------------------------
     const int screenWidth = 1500;
@@ -119,7 +127,7 @@ int main(void) {
     // Spherical Camera coordinates
     float r = 100000.0;
     float theta = 0.0;
-    float phi = 0.0;
+    float phi = PI;
 
     Matrix matProj = MatrixPerspective(camera.fovy*DEG2RAD, ((double)GetScreenWidth()/(double)GetScreenHeight()), 0.1,10000000.0);
 
@@ -129,10 +137,15 @@ int main(void) {
     //--------------------------------------------------------------------------------------
     float delta;
     print_physical_state(RV);
-    float r_at_sphere_of_influence = calculate_sphere_of_influence_r(149597870.7, eles.mass_of_parent, eles.mass_of_grandparent);
+    float r_at_sphere_of_influence = calculate_sphere_of_influence_r(EARTH_SEMIMAJOR_AXIS_KM, eles.mass_of_parent, eles.mass_of_grandparent);
     float r_at_soi_world_coords = r_at_sphere_of_influence * KM_TO_RENDER_UNITS;
 
     void* orbital_lines;
+
+    // Initial slider value and integer input value
+    float sliderValue = 50.0f;
+    int intValue = 10;
+
 
     // Main game loop
     while (!WindowShouldClose())        // Detect window close button or ESC key
@@ -146,12 +159,15 @@ int main(void) {
 
         Debug("len(orbital_lines)=%d\n",darray_length(orbital_lines));
 
-        RV = rv_from_r0v0(RV,clock.clock_seconds); 
+        RV = rv_from_r0v0(RV,clock.delta_seconds); 
+
+        /* RV.v = Vector3Scale(RV.v,0.9999); */
 
         eles = orb_elems_from_rv(RV, M_naught, t_naught);
         print_orbital_elements(eles);
         moon_position = RV.r;
         moon_velocity = RV.v;
+        /* moon_velocity = Vector3Scale(RV.v,0.9); */
 
         Vector3 moon_pos_world = vector_from_physical_to_world(moon_position);
         // sqrt((x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2)
@@ -167,7 +183,13 @@ int main(void) {
         // Draw
         //----------------------------------------------------------------------------------
         BeginDrawing();
+            // Slider input
+            GuiLabel((Rectangle){ 20, 20, 200, 20 }, "Slider:");
+            sliderValue = GuiSlider((Rectangle){ 20, 50, 200, 20 }, "Min", "Max", &sliderValue, 0.0f, 100.0f);
 
+            // Integer input
+            GuiLabel((Rectangle){ 20, 100, 200, 20 }, "Integer Input:");
+            GuiSpinner((Rectangle){ 20, 130, 125, 30 }, NULL, &intValue, 0, 100, true);  // GuiSpinner allows integer input
 
             ClearBackground(BLACK);
 
@@ -186,7 +208,7 @@ int main(void) {
                 DrawGridOfColor(250,50000,grid_color); // Draw ground
 
                 DrawSphereWires(moon_pos_world,(MOON_RADIUS_KM * KM_TO_RENDER_UNITS),10,10,GRAY);
-                DrawSphereWires(sphere_pos,(r_at_soi_world_coords),10,10,PINK);
+                DrawSphereWires(sphere_pos,(r_at_soi_world_coords),10,10,(Color){.r=255, .b=182, .g=193,.a=50});
             EndMode3D();
 
             float max_distance = 5000.0;
