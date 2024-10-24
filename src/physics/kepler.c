@@ -453,7 +453,7 @@ DVector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, 
 
 double solve_universal_anomaly(double dt, double r0, double vr0, double a_inv, double grav_param) {
     double error = 1e-8;  // Tolerance
-    int max_iters = 150;  // Maximum iterations
+    int max_iters = 1500;  // Maximum iterations
 
     // Initial guess for x
     double x = sqrt(grav_param) * dt / r0;

@@ -15,7 +15,7 @@
 #include "utils/darray.h"
 #include "utils/logger.h"
 
-#define LOG_LEVEL WARN
+#define LOG_LEVEL DEBUG
 
 const double screenWidth = 1500;
 const double screenHeight = 1000;
@@ -105,8 +105,8 @@ void draw_orbital_lines_2d(void* orbital_positions, OrbitalElements oe) {
         float x1 = screen_point1.x, y1 = screen_point1.y;
         float x2 = screen_point2.x, y2 = screen_point2.y;
 
-        DrawPixel(x1,y1,WHITE);
-        /* DrawLine(x1, y1, x2, y2, BLUE); */
+        /* DrawPixel(x1,y1,WHITE); */
+        DrawLine(x1, y1, x2, y2, BLUE);
 
         prev_pos = current_pos;
     }
@@ -148,7 +148,12 @@ int main(void) {
     void* orbital_positions;
 
     while (!WindowShouldClose()) {
-        RV.v = DVector3Scale(RV.v,1.0001);
+
+        if (IsKeyPressedRepeat(KEY_LEFT) || IsKeyPressed(KEY_LEFT)) {
+            RV.v = DVector3Scale(RV.v,1.01);
+        } else if (IsKeyPressedRepeat(KEY_RIGHT) || IsKeyPressed(KEY_RIGHT)) {
+            RV.v = DVector3Scale(RV.v,0.99);
+        }
         float delta = GetFrameTime();
         UpdatePhysicsClock(&clock, delta);
 
