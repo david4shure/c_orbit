@@ -15,7 +15,7 @@
 #include "utils/darray.h"
 #include "utils/logger.h"
 
-#define LOG_LEVEL DEBUG
+#define LOG_LEVEL WARN
 
 const double screenWidth = 1500;
 const double screenHeight = 1000;
@@ -148,6 +148,7 @@ int main(void) {
     void* orbital_positions;
 
     while (!WindowShouldClose()) {
+        RV.v = DVector3Scale(RV.v,1.0001);
         float delta = GetFrameTime();
         UpdatePhysicsClock(&clock, delta);
 

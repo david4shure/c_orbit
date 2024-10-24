@@ -630,16 +630,6 @@ DVector2 eci_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_node, d
         0,     0,     0,     1,
     };
 
-    Debug("Matrix:\n");
-    Debug("%f %f %f\n", p_1_1, p_1_2, p_1_3);
-    Debug("%f %f %f\n", p_2_1, p_2_2, p_2_3);
-    Debug("%f %f %f\n", p_3_1, p_3_2, p_3_3);
-
-
-    Debug("DEBUG: long_of_asc_node = %f\n", long_of_asc_node);
-    Debug("DEBUG: arg_of_periapsis = %f\n", arg_of_periapsis);
-    Debug("DEBUG: inclination = %f\n", inclination);
-
     // Transform the point and return the perifocal x,y coordinates (z is 0 in perifocal)
     DVector3 perifocal = DVector3Transform(eci, mat);
     return (DVector2){.x = perifocal.x, .y = perifocal.y};

@@ -9,7 +9,10 @@
 void* propagate_orbit(PhysicalState rv,float t,float M_naught, float t_naught, float z_far);
 
 // Propagates only ellipse orbits
-void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t);
+void* propagate_orbit_high_ecc_ellipse(OrbitalElements oe, PhysicalState rv, float t, float z_far);
+
+// Propagates only ellipse orbits
+void* propagate_orbit_low_ecc_ellipse(OrbitalElements oe, PhysicalState rv, float t, float z_far);
 
 // Propagates only parabolic or hyperbolic orbits
 void* propagate_orbit_non_ellipse(OrbitalElements oe, PhysicalState rv, float t, float z_far);
