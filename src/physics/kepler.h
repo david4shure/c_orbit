@@ -3,8 +3,7 @@
 #ifndef KEPLER_H
 #define KEPLER_H
 
-#include <raymath.h>
-
+#include "corbit_math.h"
 
 // We do everything in radians here
 typedef struct OrbitalElements {
@@ -28,13 +27,13 @@ typedef struct OrbitalElements {
     double inclination; // Inclination (Rads)
     double period; // Orbital Period
     double ang_momentum; // Angular momentum (km^2/s)
-    Vector3 ang_momentum_vec; // Angular momentum vector
+    DVector3 ang_momentum_vec; // Angular momentum vector
     double mean_motion; // Mean motion = sqrt(grav_param/a^3)
 } OrbitalElements;
 
 typedef struct PhysicalState {
-    Vector3 r; // Position in inertial frame 
-    Vector3 v; // Velocity in inertial frame
+    DVector3 r; // Position in inertial frame 
+    DVector3 v; // Velocity in inertial frame
     double mass_of_parent; // Mass of the central body KG e.g. Earth
     double mass_of_grandparent; // Mass of the central body's central body KG e.g. Sun
 } PhysicalState;
@@ -117,20 +116,26 @@ PhysicalState rv_from_r0v0(PhysicalState rv, double t);
 
 // Solves keplers equation for the carteesian coords in inertial frame
 // with proper rotations applied (inclination, arg periapsis, long asc, etc)
-Vector3 solve_kepler_ellipse_inertial(OrbitalElements elems, double M_naught, double t_naught, double t);
+DVector3 solve_kepler_ellipse_inertial(OrbitalElements elems, double M_naught, double t_naught, double t);
 
 // Solves keplers equation for the carteesian coords in perifocal frame 
-// Vector2 because only x and y are relevant for perifocal frame
-Vector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, double t_naught, double t); 
+// DVector2 because only x and y are relevant for perifocal frame
+DVector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, double t_naught, double t); 
 
 // Gets R (position), V (velocity) vectors from OrbitalElements
 PhysicalState rv_from_orb_elems(OrbitalElements elems);
 
 // Converts a Vec3 in World render coords to physical coords
-Vector3 vector_from_world_to_physical(Vector3 vec);
+DVector2 vector2_from_world_to_physical(DVector2 vec);
 
 // Converts a Vec3 in physical coords World render coords
-Vector3 vector_from_physical_to_world(Vector3 vec);
+DVector2 vector2_from_physical_to_world(DVector2 vec);
+
+// Converts a Vec3 in World render coords to physical coords
+DVector3 vector_from_world_to_physical(DVector3 vec);
+
+// Converts a Vec3 in physical coords World render coords
+DVector3 vector_from_physical_to_world(DVector3 vec);
 
 // Prints orbital elements duh
 void print_orbital_elements(OrbitalElements e);
@@ -139,6 +144,9 @@ void print_orbital_elements(OrbitalElements e);
 void print_physical_state(PhysicalState rv);
 
 // Applies necessary transforms to convert perifocal coords to inertial coords
-Vector3 perifocal_coords_to_inertial_coords(Vector2 pq,double long_of_asc_node,double arg_of_periapsis, double inclination);
+DVector3 perifocal_coords_to_inertial_coords(DVector2 pq,double long_of_asc_node,double arg_of_periapsis, double inclination);
+
+// Applies transform to convert from inertial coords back to perifocal coords
+DVector2 eci_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_node, double arg_of_periapsis, double inclination);
 
 #endif

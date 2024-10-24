@@ -1,6 +1,5 @@
 #include "kepler.h"
-#include "math.h"
-#include "raymath.h"
+#include "corbit_math.h"
 #include <math.h>
 #include "constants.h"
 #include "../utils/logger.h"
@@ -8,8 +7,8 @@
 
 double mean_anom(double mean_anomaly_at_epoch, double time, double time_at_epoch, double orbital_period) {
     // First calculate mean motion
-    // Given by n = (2 * PI) / T
-    double n = (2 * PI) / orbital_period;
+    // Given by n = (2 * D_PI) / T
+    double n = (2 * D_PI) / orbital_period;
     // Calculate mean anomaly given time + mean anomaly at epoch + time elapsed since
     // Given by M = M_naught + n ( t - t_naught);
     double M = mean_anomaly_at_epoch + n * (time - time_at_epoch);
@@ -27,7 +26,7 @@ double hyperbolic_anom_to_mean_anom(double hyperbolic_anom, double eccentricity)
 
 // Function to compute hyperbolic anomaly from true anomaly
 double true_anom_to_hyperbolic_anom(double true_anomaly, double eccentricity) {
-    double nu = true_anomaly * M_PI / 180.0;
+    double nu = true_anomaly * D_PI / 180.0;
 
     double tan_nu_2 = tan(nu / 2.0);
 
@@ -76,7 +75,7 @@ double solve_kepler_eq_ellipse(double eccentricity, double mean_anomaly, int max
     double e_naught;
 
     // Choose initial guesses for eccentric anomaly
-    if ((-1 * PI < mean_anomaly && mean_anomaly < 0) || (mean_anomaly > PI)) {
+    if ((-1 * D_PI < mean_anomaly && mean_anomaly < 0) || (mean_anomaly > D_PI)) {
         e_naught = mean_anomaly - eccentricity;
     } else {
         e_naught = mean_anomaly + eccentricity;
@@ -195,108 +194,131 @@ double distance_sphere_coords(double e, double a, double E) {
     return a * (1. - e * cos(E));
 }
 
-OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch, double time_at_epoch) {
-    double eps = 1.e-10;
 
-    double grav_param = 398600.0;
+OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch, double time_at_epoch) {
+    double eps = 1.e-10; // Small threshold to handle near-zero values
+
+    double grav_param = 398600.0; // Gravitational parameter (km^3/s^2)
 
     // R,V position velocity vectors
-    Vector3 R = rv.r;
-    Vector3 V = rv.v;
+    DVector3 R = rv.r;
+    DVector3 V = rv.v;
 
     // r,v magnitudes of R and V
-    double r = Vector3Length(R);
-    double v = Vector3Length(V);
+    double r = DVector3Length(R);
+    double v = DVector3Length(V);
 
     // R dot V / r
-    double vr = Vector3DotProduct(R, V) / r;
+    double vr = DVector3DotProduct(R, V) / r;
 
     // Angular momentum vector
-    Vector3 H = Vector3CrossProduct(R, V);
+    DVector3 H = DVector3CrossProduct(R, V);
 
-    // Angular momentum
-    double h = Vector3Length(H);
+    // Angular momentum magnitude
+    double h = DVector3Length(H);
+    Debug("DEBUG: H = (%f, %f, %f), |H| = %f\n", H.x, H.y, H.z, h);
 
-    // inclination
+    // Inclination
     double i = acos(H.z / h);
 
-    Vector3 z_ident = { 0, 0, 1 };
+    DVector3 z_ident = { 0, 0, 1 };
 
-    // Only cross with Z component of H
-    Vector3 N = Vector3CrossProduct(z_ident, H);
+    // Node vector (cross product of Z and H)
+    DVector3 N = DVector3CrossProduct(z_ident, H);
 
-    double n = Vector3Length(N);
+    // Magnitude of node vector
+    double n = DVector3Length(N);
+    Debug("DEBUG: N = (%f, %f, %f), |N| = %f\n", N.x, N.y, N.z, n);
 
+    // Longitude of the ascending node (Ra)
     double Ra;
-    if (n == 0) {
-        Ra = 0.0;
-    } else {
-        Ra = acos(N.x / n);
-        if (N.y < 0.0) {
-            Ra = 2 * PI - Ra;
+    if (n < eps) {
+        // Handle the edge case: equatorial orbit or zero angular momentum
+        if (fabs(i) < eps || fabs(i - D_PI) < eps) {
+            Ra = 0.0;  // Undefined for equatorial orbits
+            Debug("DEBUG: Equatorial orbit detected, setting Ra to 0\n");
+        } else {
+            Ra = 0.0;
+            Debug("DEBUG: Circular orbit detected, setting Ra to 0\n");
         }
+    } else {
+        Ra = N.x / n;
+        Ra = fmax(-1.0, fmin(1.0, Ra));  // Clamp value between -1 and 1
+        Ra = acos(Ra);
+        if (N.y < 0.0) {
+            Ra = 2 * D_PI - Ra;
+        }
+        Debug("DEBUG: Ra calculated as %f radians\n", Ra);
     }
 
-    // Eccentricity Vector
+    // Eccentricity vector
     double term1 = (v * v - grav_param / r);
     double inv_μ = 1.0f / grav_param;
 
-    Vector3 E = Vector3Scale((Vector3Subtract(Vector3Scale(R, term1), Vector3Scale(V, r * vr))), inv_μ);
+    DVector3 E = DVector3Scale(DVector3Subtract(DVector3Scale(R, term1), DVector3Scale(V, r * vr)), inv_μ);
 
-    double e = Vector3Length(E);
+    // Eccentricity magnitude
+    double e = DVector3Length(E);
 
+    // Argument of periapsis (w)
     double w;
-    if (n == 0) {
-        w = 0;
+    if (n < eps) {
+        w = 0; // Set to 0 for circular orbits
     } else {
         if (e > eps) {
-            w = acos(Vector3DotProduct(N, E) / (n * e));
+            w = acos(DVector3DotProduct(N, E) / (n * e));
             if (E.z < 0) {
-                w = 2 * PI - w;
+                w = 2 * D_PI - w;
             }
         } else {
             w = 0;
         }
     }
 
+    // True anomaly (Ta)
     double Ta;
     if (e > eps) {
-        double cos_Ta = Vector3DotProduct(E, R) / (e * r);
-        if (cos_Ta > 1.0) cos_Ta = 1.0;  // clamp value
-        if (cos_Ta < -1.0) cos_Ta = -1.0;
+        double cos_Ta = DVector3DotProduct(E, R) / (e * r);
+        cos_Ta = fmax(-1.0, fmin(1.0, cos_Ta)); // Clamp value between -1 and 1
         Ta = acos(cos_Ta);
         if (vr < 0) {
-            Ta = 2 * PI - Ta;
+            Ta = 2 * D_PI - Ta;
         }
     } else {
-        Vector3 cp = Vector3CrossProduct(N, R);
+        DVector3 cp = DVector3CrossProduct(N, R);
         if (cp.z >= 0) {
-            Ta = acos(Vector3DotProduct(N, R) / (n * r));
+            Ta = acos(DVector3DotProduct(N, R) / (n * r));
         } else {
-            Ta = 2 * PI - acos(Vector3DotProduct(N, R) / (n * r));
+            Ta = 2 * D_PI - acos(DVector3DotProduct(N, R) / (n * r));
         }
     }
 
+    // Semi-major axis (a)
     double a = h * h / (grav_param * (1 - e * e));
 
+    // Eccentric anomaly (Ea) or hyperbolic anomaly (Ha), and mean anomaly (Ma)
     double Ea = 0, Ha = 0, Ma = 0;
     if (e >= 1.0) {
+        // Hyperbolic orbit
         Ha = true_anom_to_hyperbolic_anom(Ta, e);
         Ma = hyperbolic_anom_to_mean_anom(Ha, e);
     } else {
+        // Elliptical orbit
         Ea = true_anom_to_ecc_anom(Ta, e);
-        if (Ea < 0) Ea += 2 * PI;  // Ensure it's wrapped within [0, 2π]
+        Ea = fmod(Ea, 2 * D_PI); // Ensure within [0, 2π]
         Ma = ecc_anom_to_mean_anom(Ea, e);
     }
 
-    // Wrap mean anomaly to ensure it's in the [0, 2π] range
-    Ma = fmod(Ma, 2 * PI);
+    // Wrap mean anomaly to [0, 2π]
+    Ma = fmod(Ma, 2 * D_PI);
     if (Ma < 0) {
-        Ma += 2 * PI;
+        Ma += 2 * D_PI;
     }
-    
-    double T = 2.0 * PI * sqrt(pow(a, 3) / grav_param);
 
+    // Orbital period (T)
+    double T = 2.0 * D_PI * sqrt(pow(a, 3) / grav_param);
+
+    // Populate OrbitalElements struct
     OrbitalElements elems = {
         .semimajor_axis = a,
         .eccentricity = e,
@@ -329,14 +351,14 @@ void print_orbital_elements(OrbitalElements elems) {
     Debug("eccentricity = %f\n",elems.eccentricity);
     Debug("orbital period (s) = %f\n",elems.period);
     Debug("grav param = %f\n",elems.grav_param);
-    Debug("mean anomaly = %f degrees\n",elems.mean_anomaly * RAD2DEG);
-    Debug("eccentric anomaly = %f degrees\n",elems.eccentric_anomaly * RAD2DEG);
-    Debug("hyperbolic anomaly = %f degrees\n",elems.hyperbolic_anomaly * RAD2DEG);
-    Debug("true anomaly = %f degrees\n",elems.true_anomaly * RAD2DEG);
-    Debug("inclination = %f degrees\n",elems.inclination * RAD2DEG);
-    Debug("arg of periapsis = %f degrees\n", elems.arg_of_periapsis * RAD2DEG);
-    Debug("long of asc node = %f degrees\n", elems.long_of_asc_node * RAD2DEG);
-    Debug("angular momentum h = %f\n", elems.ang_momentum * RAD2DEG);
+    Debug("mean anomaly = %f degrees\n",elems.mean_anomaly * D_RAD2DEG);
+    Debug("eccentric anomaly = %f degrees\n",elems.eccentric_anomaly * D_RAD2DEG);
+    Debug("hyperbolic anomaly = %f degrees\n",elems.hyperbolic_anomaly * D_RAD2DEG);
+    Debug("true anomaly = %f degrees\n",elems.true_anomaly * D_RAD2DEG);
+    Debug("inclination = %f degrees\n",elems.inclination * D_RAD2DEG);
+    Debug("arg of periapsis = %f degrees\n", elems.arg_of_periapsis * D_RAD2DEG);
+    Debug("long of asc node = %f degrees\n", elems.long_of_asc_node * D_RAD2DEG);
+    Debug("angular momentum h = %f\n", elems.ang_momentum * D_RAD2DEG);
     Debug("-------\n");
 }
 
@@ -348,19 +370,19 @@ void print_physical_state(PhysicalState rv) {
 }
 
 PhysicalState rv_from_orb_elems(OrbitalElements elems) {
-    Vector3 i_hat = (Vector3){1.0,0.0,0.0};
-    Vector3 j_hat = (Vector3){0.0,1.0,0.0};
+    DVector3 i_hat = (DVector3){1.0,0.0,0.0};
+    DVector3 j_hat = (DVector3){0.0,1.0,0.0};
     
     // rp = (hˆ2/mu) * (1/(1 + e*cos(TA))) * (cos(TA)*[1;0;0] + sin(TA)*[0;1;0]);
     //       rp_term_a    rp_term_b                rp_term_c             rp_term_d
 
     double rp_term_a = ((elems.ang_momentum * elems.ang_momentum)/elems.grav_param);
     double rp_term_b = 1/(1 + elems.eccentricity*cos(elems.true_anomaly));
-    Vector3 rp_term_c = Vector3Scale(i_hat,cos(elems.true_anomaly));
-    Vector3 rp_term_d = Vector3Scale(j_hat,sin(elems.true_anomaly));
-    Vector3 c_plus_d = Vector3Add(rp_term_c, rp_term_d);
+    DVector3 rp_term_c = DVector3Scale(i_hat,cos(elems.true_anomaly));
+    DVector3 rp_term_d = DVector3Scale(j_hat,sin(elems.true_anomaly));
+    DVector3 c_plus_d = DVector3Add(rp_term_c, rp_term_d);
 
-    Vector3 rp = Vector3Scale(c_plus_d, rp_term_a * rp_term_b);
+    DVector3 rp = DVector3Scale(c_plus_d, rp_term_a * rp_term_b);
 
     // vp = (mu/h) * (-sin(TA)*[1;0;0] + (e + cos(TA))*[0;1;0]);
     //        ^             ^                  ^
@@ -369,11 +391,11 @@ PhysicalState rv_from_orb_elems(OrbitalElements elems) {
     double vp_term_b = (-sin(elems.true_anomaly));
     double vp_term_c = (elems.eccentricity + cos(elems.true_anomaly));
 
-    Vector3 vp = Vector3Scale(Vector3Add(Vector3Scale(i_hat,vp_term_b),Vector3Scale(j_hat,vp_term_c)),vp_term_a);
+    DVector3 vp = DVector3Scale(DVector3Add(DVector3Scale(i_hat,vp_term_b),DVector3Scale(j_hat,vp_term_c)),vp_term_a);
 
-    // Explicit Vector3 -> Vector2 code
-    Vector2 vp_pq = (Vector2){.x=vp.x,.y=vp.y};
-    Vector2 rp_pq = (Vector2){.x=rp.x,.y=rp.y};
+    // Explicit DVector3 -> DVector2 code
+    DVector2 vp_pq = (DVector2){.x=vp.x,.y=vp.y};
+    DVector2 rp_pq = (DVector2){.x=rp.x,.y=rp.y};
 
     return (PhysicalState){
         .r = perifocal_coords_to_inertial_coords(rp_pq, elems.long_of_asc_node, elems.arg_of_periapsis, elems.inclination),
@@ -381,26 +403,39 @@ PhysicalState rv_from_orb_elems(OrbitalElements elems) {
     };
 }
 
-Vector3 vector_from_physical_to_world(Vector3 vec) {
-    Vector3 transformed = {vec.x * KM_TO_RENDER_UNITS, vec.z * KM_TO_RENDER_UNITS, vec.y * KM_TO_RENDER_UNITS };
+
+DVector2 vector2_from_physical_to_world(DVector2 vec) {
+    DVector2 transformed = {vec.x * KM_TO_RENDER_UNITS_2D, vec.y * KM_TO_RENDER_UNITS_2D};
 
     return transformed;
 }
 
-Vector3 vector_from_world_to_physical(Vector3 vec) {
-    Vector3 transformed = {vec.x * RENDER_UNITS_TO_KM, vec.z * RENDER_UNITS_TO_KM, vec.y * RENDER_UNITS_TO_KM };
+DVector2 vector2_from_world_to_physical(DVector2 vec) {
+    DVector2 transformed = {vec.x * RENDER_UNITS_TO_KM_2D, vec.y * RENDER_UNITS_TO_KM_2D};
 
     return transformed;
 }
 
-Vector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, double t_naught, double t) {
+DVector3 vector_from_physical_to_world(DVector3 vec) {
+    DVector3 transformed = {vec.x * KM_TO_RENDER_UNITS, vec.z * KM_TO_RENDER_UNITS, vec.y * KM_TO_RENDER_UNITS };
+
+    return transformed;
+}
+
+DVector3 vector_from_world_to_physical(DVector3 vec) {
+    DVector3 transformed = {vec.x * RENDER_UNITS_TO_KM, vec.z * RENDER_UNITS_TO_KM, vec.y * RENDER_UNITS_TO_KM };
+
+    return transformed;
+}
+
+DVector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, double t_naught, double t) {
     double mean_anomaly = mean_anom(M_naught,t,t_naught, elems.period);
 
-    // NOTE: If your mean anomaly goes higher than 2 PI
+    // NOTE: If your mean anomaly goes higher than 2 D_PI
     // You will fail to converge when you solve keplers eq
     // for certain values of mean_anomaly
-    if (mean_anomaly > 2 * PI) {
-        mean_anomaly = mean_anomaly - 2 * PI;
+    if (mean_anomaly > 2 * D_PI) {
+        mean_anomaly = mean_anomaly - 2 * D_PI;
     }
 
     // Solve keplers eq MA -> E -> TA -> DIST -> (x,y,z)
@@ -412,8 +447,8 @@ Vector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, d
     double x = r * cos(true_anomaly);
     double y = r * sin(true_anomaly);
 
-    // Return our handy Vector2
-    return (Vector2){.x=x,.y=y};
+    // Return our handy DVector2
+    return (DVector2){.x=x,.y=y};
 }
 
 double solve_universal_anomaly(double dt, double r0, double vr0, double a_inv, double grav_param) {
@@ -495,10 +530,10 @@ LagrangeTimeDerivs compute_lagrange_fdot_gdot(double univ_anomaly, double r, dou
 PhysicalState rv_from_r0v0(PhysicalState rv, double t) {
     double grav_param = G * rv.mass_of_parent;
 
-    double r0 = Vector3Length(rv.r);
-    double v0 = Vector3Length(rv.v);
+    double r0 = DVector3Length(rv.r);
+    double v0 = DVector3Length(rv.v);
 
-    double vr0 = Vector3DotProduct(rv.r, rv.v) / r0;
+    double vr0 = DVector3DotProduct(rv.r, rv.v) / r0;
 
     // %...Reciprocal of the semimajor axis (from the energy equation):
     double alpha = 2/r0 - v0*v0/grav_param;
@@ -510,14 +545,14 @@ PhysicalState rv_from_r0v0(PhysicalState rv, double t) {
     LagrangeCoefs fg = compute_lagrange_f_g(x, t, r0, alpha, grav_param);
 
     // Final position vector
-    Vector3 R = Vector3Add(Vector3Scale(rv.r,fg.f), Vector3Scale(rv.v,fg.g));
+    DVector3 R = DVector3Add(DVector3Scale(rv.r,fg.f), DVector3Scale(rv.v,fg.g));
 
     // Compute length of R
-    double r = Vector3Length(R);
+    double r = DVector3Length(R);
 
     LagrangeTimeDerivs fdotgdot = compute_lagrange_fdot_gdot(x, r, r0, alpha, grav_param);
 
-    Vector3 V = Vector3Add(Vector3Scale(rv.r,fdotgdot.f_dot), Vector3Scale(rv.v,fdotgdot.g_dot));
+    DVector3 V = DVector3Add(DVector3Scale(rv.r,fdotgdot.f_dot), DVector3Scale(rv.v,fdotgdot.g_dot));
 
     return (PhysicalState){
         .r = R,
@@ -527,7 +562,7 @@ PhysicalState rv_from_r0v0(PhysicalState rv, double t) {
     };
 }
 
-Vector3 perifocal_coords_to_inertial_coords(Vector2 pq,double long_of_asc_node,double arg_of_periapsis, double inclination) {
+DVector3 perifocal_coords_to_inertial_coords(DVector2 pq,double long_of_asc_node,double arg_of_periapsis, double inclination) {
     // Perform a single combined linear transformation on these perifocal 
     // coords to convert to inertial 3d space
     // cos Ω cos ω − sin Ω sin ω cos i 
@@ -552,7 +587,7 @@ Vector3 perifocal_coords_to_inertial_coords(Vector2 pq,double long_of_asc_node,d
     double i_3_3 = cos(inclination);
 
     // Create 3x3 matrix
-    Matrix mat = {
+    DMatrix mat = {
         i_1_1, i_1_2, i_1_3, 0,
         i_2_1, i_2_2, i_2_3, 0,
         i_3_1, i_3_2, i_3_3, 0,
@@ -560,10 +595,58 @@ Vector3 perifocal_coords_to_inertial_coords(Vector2 pq,double long_of_asc_node,d
     };
 
     // Transform the point and return
-    return Vector3Transform((Vector3){.x = pq.x, .y = pq.y, .z = 0}, mat);
+    return DVector3Transform((DVector3){.x = pq.x, .y = pq.y, .z = 0}, mat);
 }
 
-Vector3 solve_kepler_ellipse_inertial(OrbitalElements elems, double M_naught, double t_naught, double t) {
-    Vector2 perifocal_coords = solve_kepler_ellipse_perifocal(elems, M_naught, t_naught, t);
+DVector2 eci_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_node, double arg_of_periapsis, double inclination) {
+    // Perform a single combined linear transformation on these inertial 3d coords
+    // to convert to perifocal 2D space
+    // cos Ω cos ω − sin Ω sin ω cos i 
+    double p_1_1 = cos(long_of_asc_node) * cos(arg_of_periapsis) - sin(long_of_asc_node) * sin(arg_of_periapsis) * cos(inclination);
+    // cos Ω sin ω + sin Ω cos ω cos i
+    double p_1_2 = cos(long_of_asc_node) * sin(arg_of_periapsis) + sin(long_of_asc_node) * cos(arg_of_periapsis) * cos(inclination);
+    // sin Ω sin i
+    double p_1_3 = sin(long_of_asc_node) * sin(inclination);
+
+    // sin Ω cos ω + cos Ω sin ω cos i
+    double p_2_1 = sin(long_of_asc_node) * cos(arg_of_periapsis) + cos(long_of_asc_node) * sin(arg_of_periapsis) * cos(inclination);
+    // − sin Ω sin ω + cos Ω cos ω cos i
+    double p_2_2 = sin(long_of_asc_node) * sin(arg_of_periapsis) - cos(long_of_asc_node) * cos(arg_of_periapsis) * cos(inclination);
+    // − cos Ω sin i
+    double p_2_3 = - cos(long_of_asc_node) * sin(inclination);
+
+    // sin ω sin i
+    double p_3_1 = sin(arg_of_periapsis) * sin(inclination);
+    // cos ω sin i
+    double p_3_2 = cos(arg_of_periapsis) * sin(inclination);
+    // cos i
+    double p_3_3 = cos(inclination);
+
+    // Create 3x3 matrix (transpose of the ECI-to-Perifocal matrix)
+    DMatrix mat = {
+        p_1_1, p_2_1, p_3_1, 0,
+        p_1_2, p_2_2, p_3_2, 0,
+        p_1_3, p_2_3, p_3_3, 0,
+        0,     0,     0,     1,
+    };
+
+    Debug("Matrix:\n");
+    Debug("%f %f %f\n", p_1_1, p_1_2, p_1_3);
+    Debug("%f %f %f\n", p_2_1, p_2_2, p_2_3);
+    Debug("%f %f %f\n", p_3_1, p_3_2, p_3_3);
+
+
+    Debug("DEBUG: long_of_asc_node = %f\n", long_of_asc_node);
+    Debug("DEBUG: arg_of_periapsis = %f\n", arg_of_periapsis);
+    Debug("DEBUG: inclination = %f\n", inclination);
+
+    // Transform the point and return the perifocal x,y coordinates (z is 0 in perifocal)
+    DVector3 perifocal = DVector3Transform(eci, mat);
+    return (DVector2){.x = perifocal.x, .y = perifocal.y};
+}
+ 
+
+DVector3 solve_kepler_ellipse_inertial(OrbitalElements elems, double M_naught, double t_naught, double t) {
+    DVector2 perifocal_coords = solve_kepler_ellipse_perifocal(elems, M_naught, t_naught, t);
     return perifocal_coords_to_inertial_coords(perifocal_coords, elems.long_of_asc_node, elems.arg_of_periapsis, elems.inclination);
 } 
