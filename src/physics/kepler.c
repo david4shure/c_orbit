@@ -216,7 +216,6 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
 
     // Angular momentum magnitude
     double h = DVector3Length(H);
-    Debug("DEBUG: H = (%f, %f, %f), |H| = %f\n", H.x, H.y, H.z, h);
 
     // Inclination
     double i = acos(H.z / h);
@@ -228,7 +227,6 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
 
     // Magnitude of node vector
     double n = DVector3Length(N);
-    Debug("DEBUG: N = (%f, %f, %f), |N| = %f\n", N.x, N.y, N.z, n);
 
     // Longitude of the ascending node (Ra)
     double Ra;
@@ -236,10 +234,10 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
         // Handle the edge case: equatorial orbit or zero angular momentum
         if (fabs(i) < eps || fabs(i - D_PI) < eps) {
             Ra = 0.0;  // Undefined for equatorial orbits
-            Debug("DEBUG: Equatorial orbit detected, setting Ra to 0\n");
+            Debug("Equatorial orbit detected, setting Ra to 0\n");
         } else {
             Ra = 0.0;
-            Debug("DEBUG: Circular orbit detected, setting Ra to 0\n");
+            Debug("Circular orbit detected, setting Ra to 0\n");
         }
     } else {
         Ra = N.x / n;
@@ -248,7 +246,6 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
         if (N.y < 0.0) {
             Ra = 2 * D_PI - Ra;
         }
-        Debug("DEBUG: Ra calculated as %f radians\n", Ra);
     }
 
     // Eccentricity vector

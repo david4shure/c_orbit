@@ -22,8 +22,8 @@ double delta_t_from_velocity(double velocityMagnitude, double scalingFactor) {
     return scalingFactor / (velocityMagnitude);  // Time step inversely proportional to velocity cube
 }
 
-double delta_t_from_velocity_with_clamp(double velocityMagnitude, double scalingFactor, double max, double min) {
-    return clampd(scalingFactor / (velocityMagnitude),min,max);  // Time step inversely proportional to velocity cube }
+double delta_t_from_dist_from_periapsis(double distance_from_periapsis, double scalingFactor, double min, double max) {
+    return clampd(scalingFactor / (distance_from_periapsis),min,max);  // Time step inversely proportional to velocity cube }
 }
 
 // This function propagates an orbit and figures
@@ -34,10 +34,8 @@ void* propagate_orbit(PhysicalState rv,float t,float M_naught, float t_naught, f
     OrbitalElements oe = orb_elems_from_rv(rv,M_naught,t_naught);
 
     if (oe.eccentricity < 1.0) { // Ellipse
-        Debug("low ecc\n");
         return propagate_orbit_ellipse(oe,rv,t,max_render_distance);
     } else { // Parabolas / Hyperbolas
-        Debug("unbounded\n");
         return propagate_orbit_non_ellipse(oe,rv,t,max_render_distance);
     }
 }
@@ -90,8 +88,7 @@ void* propagate_orbit_non_ellipse(OrbitalElements oe, PhysicalState rv, float t,
 void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, float z_far) {
     void* darr = darray_init(1000, sizeof(DVector3));
 
-    // Start with a constant delta t
-    float delta_t = 50000.0;
+    float delta_t;
     PhysicalState rv_prev = rv;
     PhysicalState init_rv = rv;
     darr = darray_push(darr, (void*)&rv.r);  // Store initial point
@@ -101,7 +98,6 @@ void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, flo
     // Sample 3 points, two behind, one current
     // Check if the distance between the point and the start of where we propagated closed in.
     // ie [10km away, 5km away, 10km away] <- we know we iterated past where we started propagating if we see something like this
-
     while (true) {
         // Handles distances
         // Propagate to the next point
@@ -129,16 +125,13 @@ void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, flo
             break;
         }
 
-        // Shift items to the left
+        // Shift "distance from initial r point" items to the left
         distances[0] = distances[1];
         distances[1] = distances[2];
         distances[2] = DVector3Distance(init_rv.r, rv.r);
 
         // Update previous state
         rv_prev = rv;
-
-        // Increment time
-        t += delta_t;
     }
 
     // Final point
