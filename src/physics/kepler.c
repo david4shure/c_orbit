@@ -595,7 +595,7 @@ DVector3 perifocal_coords_to_inertial_coords(DVector2 pq,double long_of_asc_node
     return DVector3Transform((DVector3){.x = pq.x, .y = pq.y, .z = 0}, mat);
 }
 
-DVector2 eci_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_node, double arg_of_periapsis, double inclination) {
+DVector2 inertial_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_node, double arg_of_periapsis, double inclination) {
     // Perform a single combined linear transformation on these inertial 3d coords
     // to convert to perifocal 2D space
     // cos Ω cos ω − sin Ω sin ω cos i 

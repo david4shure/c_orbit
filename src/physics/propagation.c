@@ -44,7 +44,7 @@ void* propagate_orbit_non_ellipse(OrbitalElements oe, PhysicalState rv, float t,
     PhysicalState init_rv = rv;
     bool hit_max_dist = false;
     double scalingFactor = 500.0;
-    void* darr = darray_init(1000,sizeof(DVector3));
+    void* darr = darray_init(10000,sizeof(DVector3));
     float delta_t = delta_t_from_velocity(fabs(DVector3Length(init_rv.v)), scalingFactor);
 
     PhysicalState rv_init = rv;

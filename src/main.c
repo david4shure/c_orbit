@@ -12,6 +12,7 @@
 ********************************************************************************************/
 
 #include "camera.h"
+#include "physics/corbit_math.h"
 #include "physics/propagation.h"
 #include "time.h"
 #include "raylib.h"
@@ -232,11 +233,18 @@ int main(void) {
             float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-moon_pos_world.x,camera.position.y-moon_pos_world.y,camera.position.z-moon_pos_world.z});
             float distance_scale_factor = max_distance/camera_to_moon_distance;
             float time_scale_factor = sin(time*1.5)/4.0 + 1;
+
             float scale_factor = distance_scale_factor * time_scale_factor;
+            double velocity = DVector3Length(RV.v);
+            char velocity_str[20];  // Buffer for the formatted string
+            // Format the float as a string
+            snprintf(velocity_str, sizeof(velocity_str), "Velocity: %.2f KM/s", velocity);
+
 
             if (!is_object_behind_camera(camera.position, camera.target, TF(moon_pos_world))) {
                 DrawRing(moon, 14*(scale_factor), 15*(scale_factor), 0.0, 360.0,20, GRAY);
                 DrawText("MOON",(int)moon.x - MeasureText("MOON",10)/2,(int)moon.y - MeasureText("MOON", 10),10,GREEN);
+                DrawText(velocity_str,(int)moon.x - MeasureText(velocity_str,10)/2,(int)moon.y - MeasureText(velocity_str,10)/2,10,GREEN);
             }
 
             if (!is_object_behind_camera(camera.position, camera.target, TF(t0_farther_out))) {

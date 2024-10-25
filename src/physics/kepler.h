@@ -147,6 +147,6 @@ void print_physical_state(PhysicalState rv);
 DVector3 perifocal_coords_to_inertial_coords(DVector2 pq,double long_of_asc_node,double arg_of_periapsis, double inclination);
 
 // Applies transform to convert from inertial coords back to perifocal coords
-DVector2 eci_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_node, double arg_of_periapsis, double inclination);
+DVector2 inertial_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_node, double arg_of_periapsis, double inclination);
 
 #endif
