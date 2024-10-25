@@ -54,8 +54,8 @@ bool is_object_behind_camera(Vector3 cam_pos, Vector3 cam_target, Vector3 obj_po
 void draw_orbital_lines(void* orbital_positions) {
     printf("Length of positions = %d\n",darray_length(orbital_positions));
 
-    Vector3* prev_pos = NULL;
-    Vector3* current_pos = NULL;
+    DVector3* prev_pos = NULL;
+    DVector3* current_pos = NULL;
 
     // Now iterate over our darray and draw lines
     for (int i = 0; i < darray_length(orbital_positions); i++) {
@@ -67,7 +67,7 @@ void draw_orbital_lines(void* orbital_positions) {
         current_pos = darray_get(orbital_positions, i);
 
         // Draw the dang line
-        DrawLine3D(vector_from_physical_to_world(TD(*current_pos)), vector_from_physical_to_world(TD(*prev_pos)), BLUE);
+        DrawLine3D(TF(vector_from_physical_to_world(*current_pos)), TF(vector_from_physical_to_world(*prev_pos)), BLUE);
         /* DrawPoint3D(vector_from_physical_to_world(*current_pos),WHITE); */
 
         prev_pos = current_pos;
@@ -164,7 +164,7 @@ int main(void) {
 
         UpdatePhysicsClock(&clock, delta);
 
-        orbital_lines = propagate_orbit(RV, 0.0, M_naught, t_naught,r_at_sphere_of_influence);
+        orbital_lines = propagate_orbit(RV, 0.0, M_naught, t_naught,r_at_sphere_of_influence*3);
 
         Debug("len(orbital_lines)=%d\n",darray_length(orbital_lines));
 
@@ -176,18 +176,26 @@ int main(void) {
         print_orbital_elements(eles);
         moon_position = RV.r;
         moon_velocity = RV.v;
+
+        if(IsKeyDown(KEY_RIGHT) || IsKeyPressed(KEY_RIGHT)) {
+            RV.v = DVector3Scale(RV.v,1.001);
+        }
+
+        if(IsKeyDown(KEY_LEFT) || IsKeyPressed(KEY_LEFT)) {
+            RV.v = DVector3Scale(RV.v,0.999);
+        }
         /* moon_velocity = Vector3Scale(RV.v,0.9); */
 
         DVector3 moon_pos_world = vector_from_physical_to_world(moon_position);
         // sqrt((x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2)
-        float dist = DVector3Distance(moon_pos_world, camera.position);
+        float dist = DVector3Distance(moon_pos_world, TD(camera.position));
 
-        Vector3 t0_line = vector_from_physical_to_world(solve_kepler_ellipse_inertial(eles, 0.0, 0.0, 0.0));
-        Vector3 t0_norm = Vector3Normalize(t0_line);
-        Vector3 t0_farther_out = Vector3Add(t0_line, Vector3Scale(t0_norm,200));
+        DVector3 t0_line = vector_from_physical_to_world(solve_kepler_ellipse_inertial(eles, 0.0, 0.0, 0.0));
+        DVector3 t0_norm = DVector3Normalize(t0_line);
+        DVector3 t0_farther_out = DVector3Add(t0_line, DVector3Scale(t0_norm,200));
 
-        Vector2 t0_farther_out_world = GetWorldToScreen(t0_farther_out, camera);
-        Vector2 moon = GetWorldToScreen(moon_pos_world, camera);
+        Vector2 t0_farther_out_world = GetWorldToScreen(TF(t0_farther_out), camera);
+        Vector2 moon = GetWorldToScreen(TF(moon_pos_world), camera);
 
         // Draw
         //----------------------------------------------------------------------------------
@@ -216,7 +224,7 @@ int main(void) {
                 Color grid_color = { .r = 0, .g = 240, .b = 0, .a = 150};
                 DrawGridOfColor(250,50000,grid_color); // Draw ground
 
-                DrawSphereWires(moon_pos_world,(MOON_RADIUS_KM * KM_TO_RENDER_UNITS),10,10,GRAY);
+                DrawSphereWires(TF(moon_pos_world),(MOON_RADIUS_KM * KM_TO_RENDER_UNITS),10,10,GRAY);
                 DrawSphereWires(sphere_pos,(r_at_soi_world_coords),10,10,(Color){.r=255, .b=182, .g=193,.a=50});
             EndMode3D();
 
@@ -226,12 +234,12 @@ int main(void) {
             float time_scale_factor = sin(time*1.5)/4.0 + 1;
             float scale_factor = distance_scale_factor * time_scale_factor;
 
-            if (!is_object_behind_camera(camera.position, camera.target, moon_pos_world)) {
+            if (!is_object_behind_camera(camera.position, camera.target, TF(moon_pos_world))) {
                 DrawRing(moon, 14*(scale_factor), 15*(scale_factor), 0.0, 360.0,20, GRAY);
                 DrawText("MOON",(int)moon.x - MeasureText("MOON",10)/2,(int)moon.y - MeasureText("MOON", 10),10,GREEN);
             }
 
-            if (!is_object_behind_camera(camera.position, camera.target, t0_farther_out)) {
+            if (!is_object_behind_camera(camera.position, camera.target, TF(t0_farther_out))) {
                 DrawText("T=0",(int)t0_farther_out_world.x - MeasureText("T=0",10)/2,(int)t0_farther_out_world.y - MeasureText("T=0", 10),10,GREEN);
             }
 
