@@ -5,12 +5,11 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include "constants.h"
 #include "corbit_math.h"
 #include "kepler.h"
 
-const double LOW_ECC_DISTANCE_THRESHOLD = 1000.0; // 5K KM 
-const double HIGH_ECC_DISTANCE_THRESHOLD = 10000.0; // 100k KM
+const double LOW_ECC_DISTANCE_THRESHOLD = 5000.0; // 5K KM 
+const double HIGH_ECC_DISTANCE_THRESHOLD = 31000.0; // 20k KM
 
 double clampd(double value, double min, double max) {
     if (value < min) return min;
@@ -88,7 +87,16 @@ void* propagate_orbit_non_ellipse(OrbitalElements oe, PhysicalState rv, float t,
 void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, float z_far) {
     void* darr = darray_init(1000, sizeof(DVector3));
 
+    float base_delta_t_high_ecc = 10000000.0;
+    float base_delta_t_low_ecc = 50000.0;
     float delta_t;
+
+    if (oe.eccentricity < 0.95) {
+        delta_t = base_delta_t_low_ecc;
+    } else {
+        delta_t = base_delta_t_high_ecc;
+    }
+
     PhysicalState rv_prev = rv;
     PhysicalState init_rv = rv;
     darr = darray_push(darr, (void*)&rv.r);  // Store initial point
@@ -107,17 +115,30 @@ void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, flo
         double dist = DVector3Distance(rv_prev.r, rv.r);
 
         // If distance too large, halve delta_t and recalculate
-        while (dist > LOW_ECC_DISTANCE_THRESHOLD) {
+        double threshold = 0.0;
+
+        if (oe.eccentricity > 0.95) {
+            threshold = HIGH_ECC_DISTANCE_THRESHOLD;
+        } else {
+            threshold = LOW_ECC_DISTANCE_THRESHOLD;
+        }
+
+        int i = 0;
+        while (dist > threshold) {
+            i++;
             delta_t /= 2;
             rv = rv_from_r0v0(rv_prev, delta_t);
             dist = DVector3Distance(rv_prev.r, rv.r);
         }
-
         // If distance is acceptable, store the point
         darr = darray_push(darr, (void*)&rv.r);
 
         // Reset delta_t to constant for the next iteration
-        delta_t = 5000;
+        if (oe.eccentricity < 0.95) {
+            delta_t = base_delta_t_low_ecc;
+        } else {
+            delta_t = base_delta_t_high_ecc;
+        }
 
         // Have we gone past the physical position where we started propagaing from?
         if (distances[0] > distances[1] && distances[2] > distances[1]) {
@@ -133,6 +154,9 @@ void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, flo
         // Update previous state
         rv_prev = rv;
     }
+
+    darr = darray_pop(darr);
+    darr = darray_pop(darr);
 
     // Final point
     darr = darray_push(darr, (void*)&rv_prev.r);
