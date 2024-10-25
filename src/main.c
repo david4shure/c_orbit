@@ -78,6 +78,27 @@ void draw_orbital_lines(void* orbital_positions) {
     //darray_free(orbital_positions);
 }
 
+void draw_element(char* format_text, double value, int x, int y, Color color) {
+    char buffer[50];  // Buffer for the formatted string
+            // Format the float as a string
+    snprintf(buffer, sizeof(buffer), format_text, value);
+
+    DrawText(buffer,x,y,2,color);
+}
+
+void draw_orbital_parameters(OrbitalElements oe) {
+    int left_padding = 15;
+    int padding_between_rows = 13;
+    Color text_color = RED;
+
+    draw_element("e = %.2f", oe.eccentricity, left_padding, padding_between_rows, text_color);
+    draw_element("a = %.2f", oe.semimajor_axis, left_padding, padding_between_rows * 2, text_color);
+    draw_element("true anomaly = %.2f°", oe.true_anomaly * RAD2DEG, left_padding, padding_between_rows * 3, text_color);
+    draw_element("argument of periapsis = %.2f°", oe.arg_of_periapsis * RAD2DEG, left_padding, padding_between_rows * 4, text_color);
+    draw_element("inclination = %.2f°", oe.inclination * RAD2DEG, left_padding, padding_between_rows * 5, text_color);
+    draw_element("longitude of the ascending node = %.2f°", oe.long_of_asc_node * RAD2DEG, left_padding, padding_between_rows * 6, text_color);
+}
+
 //------------------------------------------------------------------------------------
 // Program main entry point
 //------------------------------------------------------------------------------------
@@ -91,8 +112,8 @@ int main(void) {
 
     // Spice 86874.49762938 316748.93677354 172163.38271959
     // Velocity spice -1.01153543  0.2712671   0.15955594]
-    DVector3 moon_position = {86874.49762938, 316748.93677354, 172163.38271959};
-    DVector3 moon_velocity = {-1.01153543, 0.2712671, 0.15955594};
+    DVector3 moon_position = {0.0, 0.0, 172163.38271959};
+    DVector3 moon_velocity = {1.3, 0.0, 0.0};
 
     /* Vector3 moon_position = {-6045, -3490, 2500}; */
     /* Vector3 moon_velocity= {-3.457, 6.618, 2.533}; */
@@ -201,13 +222,6 @@ int main(void) {
         // Draw
         //----------------------------------------------------------------------------------
         BeginDrawing();
-            // Slider input
-            GuiLabel((Rectangle){ 20, 20, 200, 20 }, "Slider:");
-            sliderValue = GuiSlider((Rectangle){ 20, 50, 200, 20 }, "Min", "Max", &sliderValue, 0.0f, 100.0f);
-
-            // Integer input
-            GuiLabel((Rectangle){ 20, 100, 200, 20 }, "Integer Input:");
-            GuiSpinner((Rectangle){ 20, 130, 125, 30 }, NULL, &intValue, 0, 100, true);  // GuiSpinner allows integer input
 
             ClearBackground(BLACK);
 
@@ -223,11 +237,12 @@ int main(void) {
 
                 DrawSphereWires(sphere_pos,EARTH_RADIUS_KM * KM_TO_RENDER_UNITS,10,10,SKYBLUE);
                 Color grid_color = { .r = 0, .g = 240, .b = 0, .a = 150};
-                DrawGridOfColor(250,50000,grid_color); // Draw ground
+                DrawGridOfColor(250,500000,grid_color); // Draw ground
 
                 DrawSphereWires(TF(moon_pos_world),(MOON_RADIUS_KM * KM_TO_RENDER_UNITS),10,10,GRAY);
                 DrawSphereWires(sphere_pos,(r_at_soi_world_coords),10,10,(Color){.r=255, .b=182, .g=193,.a=50});
             EndMode3D();
+            draw_orbital_parameters(eles);
 
             float max_distance = 5000.0;
             float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-moon_pos_world.x,camera.position.y-moon_pos_world.y,camera.position.z-moon_pos_world.z});
@@ -238,18 +253,19 @@ int main(void) {
             double velocity = DVector3Length(RV.v);
             char velocity_str[20];  // Buffer for the formatted string
             // Format the float as a string
-            snprintf(velocity_str, sizeof(velocity_str), "Velocity: %.2f KM/s", velocity);
+            snprintf(velocity_str, sizeof(velocity_str), "V=%.2f KM/s", velocity);
 
 
             if (!is_object_behind_camera(camera.position, camera.target, TF(moon_pos_world))) {
                 DrawRing(moon, 14*(scale_factor), 15*(scale_factor), 0.0, 360.0,20, GRAY);
                 DrawText("MOON",(int)moon.x - MeasureText("MOON",10)/2,(int)moon.y - MeasureText("MOON", 10),10,GREEN);
-                DrawText(velocity_str,(int)moon.x - MeasureText(velocity_str,10)/2,(int)moon.y - MeasureText(velocity_str,10)/2,10,GREEN);
+                DrawText(velocity_str,(int)moon.x - MeasureText(velocity_str,10)/2,(int)moon.y - MeasureText(velocity_str,10),10,GREEN);
             }
 
             if (!is_object_behind_camera(camera.position, camera.target, TF(t0_farther_out))) {
-                DrawText("T=0",(int)t0_farther_out_world.x - MeasureText("T=0",10)/2,(int)t0_farther_out_world.y - MeasureText("T=0", 10),10,GREEN);
+                DrawText("Pa",(int)t0_farther_out_world.x - MeasureText("T=0",10)/2,(int)t0_farther_out_world.y - MeasureText("T=0", 10),10,GREEN);
             }
+
 
         EndDrawing();
         //----------------------------------------------------------------------------------

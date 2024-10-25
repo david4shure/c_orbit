@@ -10,6 +10,8 @@ void* darray_create(void* arr, int capacity) {
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
     header = RL_REALLOC(header,sizeof(darray_header) + (header->stride * capacity));
 
+    if (!header) return NULL;  // Check for realloc failure
+
     arr = ((uint8_t*)header + sizeof(darray_header));
 
     return arr;
@@ -60,7 +62,12 @@ void* darray_push(void* arr, void* item) {
 // Insert element to array at index
 void* darray_insert(void* arr, void* item, int index) {
     // Parse out darrray_header from ptr
-    darray_header* header = arr - sizeof(darray_header);
+    darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
+
+    if (index > header->size) {
+        Warn("Insert index out of bounds");
+        return NULL;
+    }
 
     if (index > header->size-1) {
         // need to RL_REALLOCate
@@ -82,6 +89,7 @@ void* darray_insert(void* arr, void* item, int index) {
 // Removes item from end of arr
 void* darray_pop(void* arr) {
     // Parse out darrray_header from ptr
+
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (header->size == 0) {
@@ -89,7 +97,7 @@ void* darray_pop(void* arr) {
         return arr;
     }
 
-    void* ptr_to_pop = arr + sizeof(darray_header) * header->stride * (header->size - 1);
+    void* ptr_to_pop = (uint8_t*)arr + header->stride * (header->size - 1);
 
     memset(ptr_to_pop, 0, header->stride);
 
