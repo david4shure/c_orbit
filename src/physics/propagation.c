@@ -100,85 +100,64 @@ double calculate_dynamic_delta_t(double r, double r_p, double r_a, double delta_
 
     return delta_t;
 }
-
-// Function to propagate the orbit for an elliptical trajectory
 void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, float z_far) {
-    double delta_t_min = 8000.0; // minimum timestep in seconds near periapsis
-    double delta_t_max = 2000000.0; // maximum timestep in seconds near apoapsis
-    
-    // Tracking total true anomaly deltas
+    double delta_t_min = 80.0; // minimum timestep near periapsis
+    double delta_t_max = 2000000.0; // maximum timestep near apoapsis
+
     double total_true_anomaly = 0.0;
     double true_anomaly = oe.true_anomaly;
     double prev_true_anomaly = oe.true_anomaly;
-  
-    // Initialize prev_rv
+
     PhysicalState prev_rv = rv;
     void* darr = darray_init(10000, sizeof(PointBundle));
-    float delta_t = 5000.0; // seconds
+    float delta_t = 5000.0;
     float time = t;
 
-    // We are done when we have propagated 2PI true anomaly
     bool done = false;
     int max_points = 50000;
     int num_points = 0;
 
-    // Loop until we detect that we have iterated past the initial point or reach max_iterations
     while (!done) {
-        prev_rv = rv; 
+        prev_rv = rv;
         prev_true_anomaly = true_anomaly;
         OrbitalElements elems = orb_elems_from_rv(rv, 0.0, 0.0);
         true_anomaly = elems.true_anomaly;
-       
-        double delta_true_anomaly = fabs(true_anomaly - prev_true_anomaly);
-        
-        // Normalize the change to handle wraparound at 2π
-        if (delta_true_anomaly > M_PI) {
-            delta_true_anomaly -= 2 * M_PI;
-        } else if (delta_true_anomaly < -M_PI) {
-            delta_true_anomaly+= 2 * M_PI;
-        }
+
+        double delta_true_anomaly = true_anomaly - prev_true_anomaly;
+        if (delta_true_anomaly > M_PI) delta_true_anomaly -= 2 * M_PI;
+        if (delta_true_anomaly < -M_PI) delta_true_anomaly += 2 * M_PI;
         total_true_anomaly += delta_true_anomaly;
 
-        // Distance between current point and sampled point
         double r = DVector3Length(rv.r);
         double v = DVector3Length(rv.v);
 
-        // High eccentricity orbits, delta_t needs to be computed differently
         if (oe.eccentricity > 0.96) {
             double r_p = oe.periapsis_distance;
             double r_a = oe.apoapsis_distance;
-            delta_t = calculate_dynamic_delta_t(r,r_p,r_a,delta_t_min,delta_t_max);
+            delta_t = calculate_dynamic_delta_t(r, r_p, r_a, delta_t_min, delta_t_max);
         } else {
-            delta_t = 2000.0/v;
+            delta_t = 2000.0 / v;
         }
 
-        rv = rv_from_r0v0(rv,delta_t);
+        rv = rv_from_r0v0(rv, delta_t);
 
-        PointBundle bun = {
-            rv.r,
-            time,
-            oe.period+time,
-        };
-
+        PointBundle bun = { rv.r, time, oe.period + time };
         darr = darray_push(darr, (void*)&bun);
-        num_points ++;
+        num_points++;
         time += delta_t;
 
-        // Break if we've iterated over a full orbit
-        if (total_true_anomaly >= 2 * D_PI) {
+        // Stop after completing the orbit or exceeding allowed points
+        if (total_true_anomaly >= 2 * D_PI - 1e-5) {  // Threshold to handle numerical drift
             done = true;
         }
-
-        // If we exceed threshold, kill the whole array so we don't try to render
-        // something crazy, free the old array, allocate a new one with no elements,
-        // and hard break. TODO this feels bad
         if (num_points > max_points) {
-            Warn("Propagation exceeded max amount of positions to render, max=%d, num_points=%d\n",max_points,num_points);
+            Warn("Exceeded max renderable points, max=%d, num_points=%d\n", max_points, num_points);
             darray_free(darr);
-            darr = darray_init(10,sizeof(PointBundle));
+            darr = darray_init(10, sizeof(PointBundle));
             break;
         }
     }
 
     return darr;
 }
+
