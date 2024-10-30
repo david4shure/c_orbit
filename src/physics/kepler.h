@@ -29,6 +29,8 @@ typedef struct OrbitalElements {
     double ang_momentum; // Angular momentum (km^2/s)
     DVector3 ang_momentum_vec; // Angular momentum vector
     double mean_motion; // Mean motion = sqrt(grav_param/a^3)
+    double periapsis_distance; // distance at periapsis
+    double apoapsis_distance; // distance at apoapsis
 } OrbitalElements;
 
 typedef struct PhysicalState {
@@ -148,5 +150,7 @@ DVector3 perifocal_coords_to_inertial_coords(DVector2 pq,double long_of_asc_node
 
 // Applies transform to convert from inertial coords back to perifocal coords
 DVector2 inertial_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_node, double arg_of_periapsis, double inclination);
+
+double periapsis_distance(OrbitalElements oe);
 
 #endif

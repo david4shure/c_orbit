@@ -315,6 +315,12 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
     // Orbital period (T)
     double T = 2.0 * D_PI * sqrt(pow(a, 3) / grav_param);
 
+    // Periapsis = a(1-e)
+    double periapsis = a * (1.0 - e);
+
+    // Similarly for apoapsis = a(1+e)
+    double apoapsis = a * (1.0 + e);
+
     // Populate OrbitalElements struct
     OrbitalElements elems = {
         .semimajor_axis = a,
@@ -336,6 +342,8 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
         .mean_motion = sqrt(grav_param / (pow(fabs(a), 3.0))),
         .mass_of_parent = rv.mass_of_parent,
         .mass_of_grandparent = rv.mass_of_grandparent,
+        .periapsis_distance = periapsis,
+        .apoapsis_distance = apoapsis,
     };
 
     return elems;
@@ -450,7 +458,7 @@ DVector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, 
 
 double solve_universal_anomaly(double dt, double r0, double vr0, double a_inv, double grav_param) {
     double error = 1e-8;  // Tolerance
-    int max_iters = 1500;  // Maximum iterations
+    int max_iters = 250;  // Maximum iterations
 
     // Initial guess for x
     double x = sqrt(grav_param) * dt / r0;
@@ -636,4 +644,8 @@ DVector2 inertial_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_no
 DVector3 solve_kepler_ellipse_inertial(OrbitalElements elems, double M_naught, double t_naught, double t) {
     DVector2 perifocal_coords = solve_kepler_ellipse_perifocal(elems, M_naught, t_naught, t);
     return perifocal_coords_to_inertial_coords(perifocal_coords, elems.long_of_asc_node, elems.arg_of_periapsis, elems.inclination);
-} 
+}
+
+double periapsis_distance(OrbitalElements oe) {
+    return oe.semimajor_axis * (1.0 - oe.eccentricity);
+}

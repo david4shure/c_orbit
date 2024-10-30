@@ -14,4 +14,10 @@ void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, flo
 // Propagates only parabolic or hyperbolic orbits
 void* propagate_orbit_non_ellipse(OrbitalElements oe, PhysicalState rv, float t, float max_distance);
 
+typedef struct {
+    DVector3 point;
+    float time_at_point;
+    float period;
+} PointBundle;
+
 #endif

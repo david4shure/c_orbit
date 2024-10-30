@@ -5,11 +5,17 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include "constants.h"
 #include "corbit_math.h"
 #include "kepler.h"
 
 const double LOW_ECC_DISTANCE_THRESHOLD = 5000.0; // 5K KM 
 const double HIGH_ECC_DISTANCE_THRESHOLD = 31000.0; // 20k KM
+
+const double min_percentage_of_period = 0.0000247871384317557282928393136423039777582744136452674865722656250000000000000000000000000000000000;
+const double max_percentage_of_period = 0.0092951769119083982317874870204832404851913452148437500000000000000000000000000000000000000000000000;
+
+const double MAX_DELTA_T_PERCENTAGE = 0.0092951769119083982317874870204832404851913452148437500000000000000000000000000000000000000000000000; 
 
 double clampd(double value, double min, double max) {
     if (value < min) return min;
@@ -18,7 +24,7 @@ double clampd(double value, double min, double max) {
 }
 
 double delta_t_from_velocity(double velocityMagnitude, double scalingFactor) {
-    return scalingFactor / (velocityMagnitude);  // Time step inversely proportional to velocity cube
+    return scalingFactor / (velocityMagnitude * velocityMagnitude);  // Time step inversely proportional to velocity cube
 }
 
 double delta_t_from_dist_from_periapsis(double distance_from_periapsis, double scalingFactor, double min, double max) {
@@ -78,91 +84,101 @@ void* propagate_orbit_non_ellipse(OrbitalElements oe, PhysicalState rv, float t,
         time += delta_t;
     }
 
-    Debug("done forward propagating\n");
-    Warn("Length of darr in propagator = %d\n",darray_length(darr));
-
     return darr;
 }
 
+double calculate_dynamic_delta_t(double r, double r_p, double r_a, double delta_t_min, double delta_t_max) {
+    // Normalize the radial distance to the range [0, 1]
+    double normalized_distance = (r - r_p) / (r_a - r_p);
+
+    // Calculate dynamic delta_t based on normalized distance
+    double delta_t = delta_t_min + (delta_t_max - delta_t_min) * normalized_distance;
+
+    // Ensure delta_t stays within bounds
+    if (delta_t > delta_t_max) delta_t = delta_t_max;
+    if (delta_t < delta_t_min) delta_t = delta_t_min;
+
+    return delta_t;
+}
+
+// Function to propagate the orbit for an elliptical trajectory
 void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, float z_far) {
-    void* darr = darray_init(1000, sizeof(DVector3));
+    double delta_t_min = 8000.0; // minimum timestep in seconds near periapsis
+    double delta_t_max = 2000000.0; // maximum timestep in seconds near apoapsis
+    
+    // Tracking total true anomaly deltas
+    double total_true_anomaly = 0.0;
+    double true_anomaly = oe.true_anomaly;
+    double prev_true_anomaly = oe.true_anomaly;
+  
+    // Initialize prev_rv
+    PhysicalState prev_rv = rv;
+    void* darr = darray_init(10000, sizeof(PointBundle));
+    float delta_t = 5000.0; // seconds
+    float time = t;
 
-    float base_delta_t_high_ecc = 10000000.0;
-    float base_delta_t_low_ecc = 50000.0;
-    float delta_t;
+    // We are done when we have propagated 2PI true anomaly
+    bool done = false;
+    int max_points = 50000;
+    int num_points = 0;
 
-    if (oe.eccentricity < 0.95) {
-        delta_t = base_delta_t_low_ecc;
-    } else {
-        delta_t = base_delta_t_high_ecc;
-    }
+    // Loop until we detect that we have iterated past the initial point or reach max_iterations
+    while (!done) {
+        prev_rv = rv; 
+        prev_true_anomaly = true_anomaly;
+        OrbitalElements elems = orb_elems_from_rv(rv, 0.0, 0.0);
+        true_anomaly = elems.true_anomaly;
+       
+        double delta_true_anomaly = fabs(true_anomaly - prev_true_anomaly);
+        
+        // Normalize the change to handle wraparound at 2π
+        if (delta_true_anomaly > M_PI) {
+            delta_true_anomaly -= 2 * M_PI;
+        } else if (delta_true_anomaly < -M_PI) {
+            delta_true_anomaly+= 2 * M_PI;
+        }
+        total_true_anomaly += delta_true_anomaly;
 
-    PhysicalState rv_prev = rv;
-    PhysicalState init_rv = rv;
-    darr = darray_push(darr, (void*)&rv.r);  // Store initial point
-    double distances[3] = {0.0,0.0,0.0};
-    int num_happenings = 0;
+        // Distance between current point and sampled point
+        double r = DVector3Length(rv.r);
+        double v = DVector3Length(rv.v);
 
-    // Sample 3 points, two behind, one current
-    // Check if the distance between the point and the start of where we propagated closed in.
-    // ie [10km away, 5km away, 10km away] <- we know we iterated past where we started propagating if we see something like this
-    while (true) {
-        // Handles distances
-        // Propagate to the next point
-        rv = rv_from_r0v0(rv_prev, delta_t);
-
-        // Check distance between points
-        double dist = DVector3Distance(rv_prev.r, rv.r);
-
-        // If distance too large, halve delta_t and recalculate
-        double threshold = 0.0;
-
-        if (oe.eccentricity > 0.95) {
-            threshold = HIGH_ECC_DISTANCE_THRESHOLD;
+        // High eccentricity orbits, delta_t needs to be computed differently
+        if (oe.eccentricity > 0.96) {
+            double r_p = oe.periapsis_distance;
+            double r_a = oe.apoapsis_distance;
+            delta_t = calculate_dynamic_delta_t(r,r_p,r_a,delta_t_min,delta_t_max);
         } else {
-            threshold = LOW_ECC_DISTANCE_THRESHOLD;
+            delta_t = 2000.0/v;
         }
 
-        int i = 0;
-        while (dist > threshold) {
-            i++;
-            delta_t /= 2;
-            rv = rv_from_r0v0(rv_prev, delta_t);
-            dist = DVector3Distance(rv_prev.r, rv.r);
-        }
-        // If distance is acceptable, store the point
-        darr = darray_push(darr, (void*)&rv.r);
+        rv = rv_from_r0v0(rv,delta_t);
 
-        // Reset delta_t to constant for the next iteration
-        if (oe.eccentricity < 0.95) {
-            delta_t = base_delta_t_low_ecc;
-        } else {
-            delta_t = base_delta_t_high_ecc;
+        PointBundle bun = {
+            rv.r,
+            time,
+            oe.period+time,
+        };
+
+        darr = darray_push(darr, (void*)&bun);
+        num_points ++;
+        time += delta_t;
+
+        // Break if we've iterated over a full orbit
+        if (total_true_anomaly >= 2 * D_PI) {
+            done = true;
         }
 
-        // Have we gone past the physical position where we started propagaing from?
-        if (distances[0] > distances[1] && distances[2] > distances[1]) {
-            num_happenings++;
+        // If we exceed threshold, kill the whole array so we don't try to render
+        // something crazy, free the old array, allocate a new one with no elements,
+        // and hard break. TODO this feels bad
+        if (num_points > max_points) {
+            Warn("Propagation exceeded max amount of positions to render, max=%d, num_points=%d\n",max_points,num_points);
+            darray_free(darr);
+            darr = darray_init(10,sizeof(PointBundle));
             break;
         }
-
-        // Shift "distance from initial r point" items to the left
-        distances[0] = distances[1];
-        distances[1] = distances[2];
-        distances[2] = DVector3Distance(init_rv.r, rv.r);
-
-        // Update previous state
-        rv_prev = rv;
     }
 
-    darr = darray_pop(darr);
-    darr = darray_pop(darr);
-
-    // Final point
-    darr = darray_push(darr, (void*)&rv_prev.r);
-
-    // Return or use the points as needed
-    // darray_free(darr);
     return darr;
 }
-

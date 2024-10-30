@@ -22,7 +22,7 @@ static const double MOON_MASS_KG = 7.348e+22;
 static const double SUN_MASS_KG = 1.989e+30;
 
 // 20 km to 1 render unit
-static const double RENDER_UNITS_TO_KM = 1.0;
+static const double RENDER_UNITS_TO_KM = 20.0;
 
 // 0.05 KM render units to a KM
 static const double KM_TO_RENDER_UNITS = 1/RENDER_UNITS_TO_KM;
