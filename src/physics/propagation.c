@@ -11,11 +11,7 @@
 
 const double LOW_ECC_DISTANCE_THRESHOLD = 5000.0; // 5K KM 
 const double HIGH_ECC_DISTANCE_THRESHOLD = 31000.0; // 20k KM
-
-const double min_percentage_of_period = 0.0000247871384317557282928393136423039777582744136452674865722656250000000000000000000000000000000000;
-const double max_percentage_of_period = 0.0092951769119083982317874870204832404851913452148437500000000000000000000000000000000000000000000000;
-
-const double MAX_DELTA_T_PERCENTAGE = 0.0092951769119083982317874870204832404851913452148437500000000000000000000000000000000000000000000000; 
+const int MAX_POINTS = 100000;
 
 double clampd(double value, double min, double max) {
     if (value < min) return min;
@@ -25,10 +21,6 @@ double clampd(double value, double min, double max) {
 
 double delta_t_from_velocity(double velocityMagnitude, double scalingFactor) {
     return scalingFactor / (velocityMagnitude * velocityMagnitude);  // Time step inversely proportional to velocity cube
-}
-
-double delta_t_from_dist_from_periapsis(double distance_from_periapsis, double scalingFactor, double min, double max) {
-    return clampd(scalingFactor / (distance_from_periapsis),min,max);  // Time step inversely proportional to velocity cube }
 }
 
 // This function propagates an orbit and figures
@@ -58,6 +50,8 @@ void* propagate_orbit_non_ellipse(OrbitalElements oe, PhysicalState rv, float t,
     darr = darray_push(darr, (void*)&rv_init.r);
     // Propagate backwards until we hit SOI
     float time = t;
+    int num_points = 0;
+
     while (!hit_max_dist) {
         delta_t = delta_t_from_velocity(DVector3Length(rv.v), scalingFactor);
         rv = rv_from_r0v0(rv, -delta_t);
@@ -65,6 +59,14 @@ void* propagate_orbit_non_ellipse(OrbitalElements oe, PhysicalState rv, float t,
         hit_max_dist = distance > max_render_distance;
         darr = darray_insert_at(darr,(void*)&rv.r,0);
         time -= delta_t;
+        num_points++;
+
+        if (num_points > MAX_POINTS) {
+            Warn("Exceeded max renderable points, max=%d, num_points=%d\n", MAX_POINTS, num_points);
+            darray_free(darr);
+            darr = darray_init(10, sizeof(PointBundle));
+            break;
+        }
     }
 
     hit_max_dist = false;
@@ -82,6 +84,13 @@ void* propagate_orbit_non_ellipse(OrbitalElements oe, PhysicalState rv, float t,
         hit_max_dist = distance > max_render_distance;
         darr = darray_push(darr, (void*)&rv.r);
         time += delta_t;
+        num_points++;
+        if (num_points > MAX_POINTS) {
+            Warn("Exceeded max renderable points, max=%d, num_points=%d\n", MAX_POINTS, num_points);
+            darray_free(darr);
+            darr = darray_init(10, sizeof(PointBundle));
+            break;
+        }
     }
 
     return darr;
@@ -100,25 +109,30 @@ double calculate_dynamic_delta_t(double r, double r_p, double r_a, double delta_
 
     return delta_t;
 }
+
 void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, float z_far) {
     double delta_t_min;
     double delta_t_max;
 
+    // TODO: Improve this logic, this does not scale. I need to move on to other things 
+    // but I will come back to this.
     if (oe.eccentricity <= 0.7) {
         delta_t_min = 1000.0;
         delta_t_max = 1000.0;
     } else if (oe.eccentricity <= 0.9) {
         // For moderate eccentricity, gently scale from 1000 to an intermediate value.
         double scale = (oe.eccentricity - 0.7) / (0.9 - 0.7);
-        delta_t_min = 1000.0 - scale * (1000.0 - 500.0);   // Scale to a bit lower than 1000, like 500.
+        delta_t_min = 100.0 - scale * (100.0 - 500.0);   // Scale to a bit lower than 1000, like 500.
         delta_t_max = 1000.0 + scale * (50000.0 - 1000.0); // Scale up to 50000.
     } else {
         // For very high eccentricity, scale from intermediate values to the extremes.
-        double scale = (oe.eccentricity - 0.9) / (0.999 - 0.9);
-        delta_t_min = 5000.0 - scale * (500.0 - 200.0);       // Scale down from 500 to 80.
-        delta_t_max = 50000.0 + scale * (200000.0 - 50000.0); // Scale up from 50000 to 200000.
+        double scale = (oe.eccentricity - 0.9) / (0.999999 - 0.9);
+        delta_t_min = 7000.0;
+        delta_t_max = 2000000.0;
     }
 
+    Debug("delta_t_min = %.2f\n",delta_t_min);
+    Debug("delta_t_max = %.2f\n",delta_t_max);
 
     double total_true_anomaly = 0.0;
     double true_anomaly = oe.true_anomaly;
@@ -130,7 +144,6 @@ void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, flo
     float time = t;
 
     bool done = false;
-    int max_points = 50000;
     int num_points = 0;
 
     while (!done) {
@@ -162,12 +175,13 @@ void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, flo
         if (total_true_anomaly >= 2 * D_PI - 1e-5) {  // Threshold to handle numerical drift
             done = true;
         }
-        /* if (num_points > max_points) { */
-        /*     Warn("Exceeded max renderable points, max=%d, num_points=%d\n", max_points, num_points); */
-        /*     darray_free(darr); */
-        /*     darr = darray_init(10, sizeof(PointBundle)); */
-        /*     break; */
-        /* } */
+
+        if (num_points > MAX_POINTS) {
+            Warn("Exceeded max renderable points, max=%d, num_points=%d\n", MAX_POINTS, num_points);
+            darray_free(darr);
+            darr = darray_init(10, sizeof(PointBundle));
+            break;
+        }
     }
 
     return darr;

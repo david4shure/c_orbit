@@ -200,7 +200,7 @@ int main(void) {
         moon_velocity = RV.v;
 
         if(IsKeyDown(KEY_RIGHT) || IsKeyPressed(KEY_RIGHT)) {
-            RV.v = DVector3Scale(RV.v,1.001);
+            RV.v = DVector3Scale(RV.v,1.0001);
         }
 
         if(IsKeyDown(KEY_LEFT) || IsKeyPressed(KEY_LEFT)) {
