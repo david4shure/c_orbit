@@ -101,8 +101,24 @@ double calculate_dynamic_delta_t(double r, double r_p, double r_a, double delta_
     return delta_t;
 }
 void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, float z_far) {
-    double delta_t_min = 80.0; // minimum timestep near periapsis
-    double delta_t_max = 2000000.0; // maximum timestep near apoapsis
+    double delta_t_min;
+    double delta_t_max;
+
+    if (oe.eccentricity <= 0.7) {
+        delta_t_min = 1000.0;
+        delta_t_max = 1000.0;
+    } else if (oe.eccentricity <= 0.9) {
+        // For moderate eccentricity, gently scale from 1000 to an intermediate value.
+        double scale = (oe.eccentricity - 0.7) / (0.9 - 0.7);
+        delta_t_min = 1000.0 - scale * (1000.0 - 500.0);   // Scale to a bit lower than 1000, like 500.
+        delta_t_max = 1000.0 + scale * (50000.0 - 1000.0); // Scale up to 50000.
+    } else {
+        // For very high eccentricity, scale from intermediate values to the extremes.
+        double scale = (oe.eccentricity - 0.9) / (0.999 - 0.9);
+        delta_t_min = 5000.0 - scale * (500.0 - 200.0);       // Scale down from 500 to 80.
+        delta_t_max = 50000.0 + scale * (200000.0 - 50000.0); // Scale up from 50000 to 200000.
+    }
+
 
     double total_true_anomaly = 0.0;
     double true_anomaly = oe.true_anomaly;
@@ -131,13 +147,9 @@ void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, flo
         double r = DVector3Length(rv.r);
         double v = DVector3Length(rv.v);
 
-        if (oe.eccentricity > 0.96) {
-            double r_p = oe.periapsis_distance;
-            double r_a = oe.apoapsis_distance;
-            delta_t = calculate_dynamic_delta_t(r, r_p, r_a, delta_t_min, delta_t_max);
-        } else {
-            delta_t = 2000.0 / v;
-        }
+        double r_p = oe.periapsis_distance;
+        double r_a = oe.apoapsis_distance;
+        delta_t = calculate_dynamic_delta_t(r, r_p, r_a, delta_t_min, delta_t_max);
 
         rv = rv_from_r0v0(rv, delta_t);
 
@@ -150,12 +162,12 @@ void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, flo
         if (total_true_anomaly >= 2 * D_PI - 1e-5) {  // Threshold to handle numerical drift
             done = true;
         }
-        if (num_points > max_points) {
-            Warn("Exceeded max renderable points, max=%d, num_points=%d\n", max_points, num_points);
-            darray_free(darr);
-            darr = darray_init(10, sizeof(PointBundle));
-            break;
-        }
+        /* if (num_points > max_points) { */
+        /*     Warn("Exceeded max renderable points, max=%d, num_points=%d\n", max_points, num_points); */
+        /*     darray_free(darr); */
+        /*     darr = darray_init(10, sizeof(PointBundle)); */
+        /*     break; */
+        /* } */
     }
 
     return darr;

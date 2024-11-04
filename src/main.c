@@ -33,6 +33,9 @@
 
 #define LOG_LEVEL DEBUG
 
+const int screenWidth = 1500;
+const int screenHeight = 1000;
+
 Vector3 TF(DVector3 vec) {
     return (Vector3){.x = (float)vec.x, .y = (float)vec.y, .z= (float)vec.z};
 }
@@ -85,7 +88,7 @@ void draw_orbital_lines(void* orbital_positions) {
 
         Color col = interpolate_color(RED,GREEN,current_pos->time_at_point/current_pos->period);
 
-        DrawLine3D(TF(vector_from_physical_to_world(current_pos->point)), TF(vector_from_physical_to_world(prev_pos->point)), BLUE);
+        DrawLine3D(TF(vector_from_physical_to_world(current_pos->point)), TF(vector_from_physical_to_world(prev_pos->point)), col);
 
         prev_pos = current_pos;
     }
@@ -112,7 +115,7 @@ void draw_orbital_parameters(OrbitalElements oe, int num_lines) {
     draw_element("argument of periapsis = %.2f°", oe.arg_of_periapsis * RAD2DEG, left_padding, padding_between_rows * 4, text_color);
     draw_element("inclination = %.2f°", oe.inclination * RAD2DEG, left_padding, padding_between_rows * 5, text_color);
     draw_element("longitude of the ascending node = %.2f°", oe.long_of_asc_node * RAD2DEG, left_padding, padding_between_rows * 6, text_color);
-    draw_element("number of lines = %d", num_lines, left_padding, padding_between_rows * 17, text_color);
+    draw_element("number of lines = %.0f", (double)num_lines, screenWidth-140, padding_between_rows, GREEN);
 }
 
 //------------------------------------------------------------------------------------
@@ -122,8 +125,9 @@ int main(void) {
     // Initialize Loggeruuu
     InitializeLogger(LOG_LEVEL);
 
-    DVector3 moon_position = {0.0, 0.0, 172163.38271959};
-    DVector3 moon_velocity = {1.3, 0.0, 0.0};
+    // DEBUG : r={2646.36390,0.00000,172135.51695},v={2.15104,0.00000,-0.04530}
+    DVector3 moon_position = {2646.36390,0.00000,172135.51695};
+    DVector3 moon_velocity = {2.15104,0.00000,-0.04530};
 
     PhysicalState RV = {
         .r = moon_position,
@@ -139,8 +143,6 @@ int main(void) {
     PhysicsTimeClock clock = { .tick_interval_seconds = 86400, .mode = Elapsing, .scale = 10000.0, .delta_seconds = 0.0, .clock_seconds = 0.0};
 
     //--------------------------------------------------------------------------------------
-    const int screenWidth = 1500;
-    const int screenHeight = 1000;
 
     InitWindow(screenWidth, screenHeight, "raylib [core] example - 3d camera first person");
 
@@ -190,6 +192,7 @@ int main(void) {
         int len_lines = darray_length(orbital_lines);
 
         RV = rv_from_r0v0(RV,clock.delta_seconds); 
+        Debug("r={%.5f,%.5f,%.5f},v={%.5f,%.5f,%.5f}\n",RV.r.x,RV.r.y,RV.r.z,RV.v.x,RV.v.y,RV.v.z);
 
         eles = orb_elems_from_rv(RV, M_naught, t_naught);
         print_orbital_elements(eles);
@@ -201,7 +204,7 @@ int main(void) {
         }
 
         if(IsKeyDown(KEY_LEFT) || IsKeyPressed(KEY_LEFT)) {
-            RV.v = DVector3Scale(RV.v,0.999);
+            RV.v = DVector3Scale(RV.v,0.9999);
         }
 
         if(IsKeyDown(KEY_D) || IsKeyPressed(KEY_D)) {
