@@ -38,7 +38,7 @@ void* propagate_orbit(PhysicalState rv,float t,float M_naught, float t_naught, f
 }
 
 void* propagate_orbit_non_ellipse(OrbitalElements oe, PhysicalState rv, float t, float max_render_distance) {
-    // Go in the negative direction until we hit SOI
+    // Go in the negative direction until we hit max_render_distance
     PhysicalState init_rv = rv;
     bool hit_max_dist = false;
     double scalingFactor = 500.0;
@@ -162,6 +162,7 @@ void* propagate_orbit_ellipse(OrbitalElements oe, PhysicalState rv, float t, flo
 
         double r_p = oe.periapsis_distance;
         double r_a = oe.apoapsis_distance;
+
         delta_t = calculate_dynamic_delta_t(r, r_p, r_a, delta_t_min, delta_t_max);
 
         rv = rv_from_r0v0(rv, delta_t);
