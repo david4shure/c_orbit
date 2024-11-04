@@ -19,6 +19,7 @@
 #include "raymath.h"
 #include "rcamera.h"
 #include "rlgl.h"
+#include <stdint.h>
 #include <stdio.h>
 #include "raygui.h"
 
