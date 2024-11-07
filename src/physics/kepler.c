@@ -97,7 +97,7 @@ double solve_kepler_eq_ellipse(double eccentricity, double mean_anomaly, int max
         count++;
 
         if (count > max_iters) {
-            Warn("Failed to converge for keplers eq after %d iters\n",max_iters);
+            /* Warn("Failed to converge for keplers eq after %d iters\n",max_iters); */
             break;
         }
     }
@@ -443,7 +443,8 @@ DVector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, 
         mean_anomaly = mean_anomaly - 2 * D_PI;
     }
 
-    /* Debug("Computing for mean_anomaly = %.6f\n",mean_anomaly); */
+
+    /* Debug("Computing for mean_anomaly = %.6f\n",mean_anomaly*D_RAD2DEG); */
 
     // Solve keplers eq MA -> E -> TA -> DIST -> (x,y,z)
     double eccentric_anomaly = solve_kepler_eq_ellipse(elems.eccentricity, mean_anomaly, 50);

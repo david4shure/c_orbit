@@ -102,7 +102,7 @@ darray compute_orbital_lines_ellipse(OrbitalElements oe, PhysicalState rv, float
     double r_p = oe.periapsis_distance;
     double r_a = oe.apoapsis_distance;
     
-    for (float time = 0.0; time< oe.period; time += delta_t) {
+    for (float time = 0.0; time<oe.period; time += delta_t) {
         // Make delta_t larger at apoapsis
         // Make delta_t smaller at periapsis
 
@@ -116,9 +116,11 @@ darray compute_orbital_lines_ellipse(OrbitalElements oe, PhysicalState rv, float
         double min_circular = oe.period/1000;
 
         // Extreme range of min/max values
-        double min_elliptical = oe.period/10000000000;
+        double min_elliptical = oe.period/10000000;
         double max_elliptical = oe.period/500;
 
+        Debug("max_circular=%.6f, min_circular=%.6f\n",max_circular,min_circular);
+        Debug("min_elliptical=%.6f, max_elliptical=%.6f\n",min_elliptical,max_elliptical);
 
         // Linear interpolation between them based on eccentricity :)
         double min = min_elliptical + (1-oe.eccentricity) * (min_circular - min_elliptical);
@@ -126,7 +128,16 @@ darray compute_orbital_lines_ellipse(OrbitalElements oe, PhysicalState rv, float
 
         // Linear interpolate between max/min from 0..1 fraction determined
         // where 0 is distance at periapsis, and 1 is distance at apoapsis
-        delta_t = min + (r-r_p)/(r_a-r_p) * (max-min);
+        if (r_a == r_p) {
+            // Handle degenerate case, e.g., circular orbit
+            delta_t = min;  // or an appropriate fallback
+        } else {
+            delta_t = min + (r-r_p)/(r_a-r_p) * (max-min);
+        }
+
+        /* Debug("period=%.5f\n", oe.period); */
+        /* Debug("delta_t=%.5f\n",delta_t); */
+        /* Debug("time=%.5f\n",time); */
 
         // Construct point bundle
         PointBundle bundle = (PointBundle){
