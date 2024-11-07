@@ -1,4 +1,4 @@
-#include "propagation.h"
+#include "orbital_lines.h"
 #include "../utils/darray.h"
 #include "../utils/logger.h"
 #include "assert.h"
@@ -8,8 +8,6 @@
 #include "corbit_math.h"
 #include "kepler.h"
 
-const double LOW_ECC_DISTANCE_THRESHOLD = 5000.0; // 5K KM 
-const double HIGH_ECC_DISTANCE_THRESHOLD = 31000.0; // 20k KM
 const int MAX_POINTS = 100000;
 
 double clampd(double value, double min, double max) {
@@ -37,6 +35,55 @@ darray compute_orbital_lines(PhysicalState rv,float t,float M_naught, float t_na
 }
 
 darray compute_orbital_lines_non_ellipse(OrbitalElements oe, PhysicalState rv, float t, float max_render_distance) {
+    // Go in the negative direction until we hit max_render_distance
+    PhysicalState init_rv = rv;
+    bool hit_max_dist = false;
+    double scalingFactor = 500.0;
+    void* darr = darray_init(10000,sizeof(DVector3));
+    float delta_t = delta_t_from_velocity(fabs(DVector3Length(init_rv.v)), scalingFactor);
+    PhysicalState rv_init = rv;
+    darr = darray_push(darr, (void*)&rv_init.r);
+    // Propagate backwards until we hit SOI
+    float time = t;
+    int num_points = 0;
+    while (!hit_max_dist) {
+        delta_t = delta_t_from_velocity(DVector3Length(rv.v), scalingFactor);
+        rv = rv_from_r0v0(rv, -delta_t);
+        float distance = fabs(DVector3Length(rv.r));
+        hit_max_dist = distance > max_render_distance;
+        darr = darray_insert_at(darr,(void*)&rv.r,0);
+        time -= delta_t;
+        num_points++;
+        if (num_points > MAX_POINTS) {
+            Warn("Exceeded max renderable points, max=%d, num_points=%d\n", MAX_POINTS, num_points);
+            darray_free(darr);
+            darr = darray_init(10, sizeof(PointBundle));
+            break;
+        }
+    }
+    hit_max_dist = false;
+    // Propagate forwards until we hit SOI
+    time = t;
+    rv = rv_init; 
+    darr = darray_push(darr, (void*)&rv_init.r);
+    delta_t = delta_t_from_velocity(DVector3Length(init_rv.v), scalingFactor);
+    while (!hit_max_dist) {
+        delta_t = delta_t_from_velocity(DVector3Length(rv.v), scalingFactor);
+        rv = rv_from_r0v0(rv, delta_t);
+        float distance = fabs(DVector3Length(rv.r));
+        hit_max_dist = distance > max_render_distance;
+        darr = darray_push(darr, (void*)&rv.r);
+        time += delta_t;
+        num_points++;
+        if (num_points > MAX_POINTS) {
+            Warn("Exceeded max renderable points, max=%d, num_points=%d\n", MAX_POINTS, num_points);
+            darray_free(darr);
+            darr = darray_init(10, sizeof(PointBundle));
+            break;
+        }
+    }
+
+    return darr;
 }
 
 darray compute_orbital_lines_ellipse(OrbitalElements oe, PhysicalState rv, float t, float z_far) {
@@ -47,7 +94,7 @@ darray compute_orbital_lines_ellipse(OrbitalElements oe, PhysicalState rv, float
     darray arr = darray_init(1850, sizeof(PointBundle));
 
     // Scale delta T by distance to apoapsis
-    float delta_t = oe.period/1000.0;
+    float delta_t;
 
     // True anomaly [0,2PI]
     // loop through true anomaly
@@ -55,11 +102,13 @@ darray compute_orbital_lines_ellipse(OrbitalElements oe, PhysicalState rv, float
     double r_p = oe.periapsis_distance;
     double r_a = oe.apoapsis_distance;
     
-    for (float time = 0.0; time < oe.period; time += delta_t) {
+    for (float time = 0.0; time< oe.period; time += delta_t) {
         // Make delta_t larger at apoapsis
         // Make delta_t smaller at periapsis
 
         DVector3 position = solve_kepler_ellipse_inertial(oe, 0.0, 0.0, time);
+
+        // Calculate distance
         double r = DVector3Length(position);
 
         // Shallow range of min/max values
@@ -69,6 +118,7 @@ darray compute_orbital_lines_ellipse(OrbitalElements oe, PhysicalState rv, float
         // Extreme range of min/max values
         double min_elliptical = oe.period/10000000;
         double max_elliptical = oe.period/500;
+
 
         // Linear interpolation between them based on eccentricity :)
         double min = min_elliptical + (1-oe.eccentricity) * (min_circular - min_elliptical);

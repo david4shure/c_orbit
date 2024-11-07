@@ -13,7 +13,7 @@
 
 #include "camera.h"
 #include "physics/corbit_math.h"
-#include "physics/propagation.h"
+#include "physics/orbital_lines.h"
 #include "time.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -127,8 +127,9 @@ int main(void) {
     InitializeLogger(LOG_LEVEL);
 
     // DEBUG : r={2646.36390,0.00000,172135.51695},v={2.15104,0.00000,-0.04530}
-    DVector3 moon_position = {2646.36390,0.00000,172135.51695};
-    DVector3 moon_velocity = {2.15104,0.00000,-0.04530};
+    // r={535344.68601,0.00000,-253679.25784},v={0.61903,0.00000,-0.98094}
+    DVector3 moon_position = {535344.68601,0.00000,-253679.25784};
+    DVector3 moon_velocity = {0.61903,0.00000,-0.98094};
 
     // X =-1.434469380595836E+05 Y =-3.679580723218923E+05 Z =-3.718096192515444E+04
     // VX= 5.910407088277736E-01 VY=-4.828271439706466E-01 VZ= 3.566713870051011E-02
