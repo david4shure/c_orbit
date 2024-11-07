@@ -116,7 +116,7 @@ darray compute_orbital_lines_ellipse(OrbitalElements oe, PhysicalState rv, float
         double min_circular = oe.period/1000;
 
         // Extreme range of min/max values
-        double min_elliptical = oe.period/10000000;
+        double min_elliptical = oe.period/10000000000;
         double max_elliptical = oe.period/500;
 
 
