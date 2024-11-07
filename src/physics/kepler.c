@@ -97,7 +97,7 @@ double solve_kepler_eq_ellipse(double eccentricity, double mean_anomaly, int max
         count++;
 
         if (count > max_iters) {
-            //Warn("Failed to converge for keplers eq after %d iters\n",max_iters);
+            Warn("Failed to converge for keplers eq after %d iters\n",max_iters);
             break;
         }
     }
@@ -443,6 +443,8 @@ DVector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, 
         mean_anomaly = mean_anomaly - 2 * D_PI;
     }
 
+    /* Debug("Computing for mean_anomaly = %.6f\n",mean_anomaly); */
+
     // Solve keplers eq MA -> E -> TA -> DIST -> (x,y,z)
     double eccentric_anomaly = solve_kepler_eq_ellipse(elems.eccentricity, mean_anomaly, 50);
     double true_anomaly = ecc_anom_to_true_anom(elems.eccentricity, eccentric_anomaly);
@@ -555,8 +557,10 @@ PhysicalState rv_from_r0v0(PhysicalState rv, double t) {
     // Compute length of R
     double r = DVector3Length(R);
 
+    // Compute time derivatives of Lagrange Coefs
     LagrangeTimeDerivs fdotgdot = compute_lagrange_fdot_gdot(x, r, r0, alpha, grav_param);
 
+    // Final velocity vector
     DVector3 V = DVector3Add(DVector3Scale(rv.r,fdotgdot.f_dot), DVector3Scale(rv.v,fdotgdot.g_dot));
 
     return (PhysicalState){

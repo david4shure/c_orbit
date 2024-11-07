@@ -16,7 +16,7 @@ void SphericalCameraSystem(float *r, float *theta, float *phi, Camera3D *camera)
     Vector2 mousePositionDelta = GetMouseDelta();
     float mouseWheelMove = GetMouseWheelMove();
 
-    float scale = 1.0;
+    float scale = 2.0;
     if (IsKeyDown(KEY_LEFT_SHIFT)) {
         scale = 0.1;
     }

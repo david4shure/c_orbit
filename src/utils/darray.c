@@ -5,7 +5,7 @@
 #include <raylib.h>
 #include "logger.h"
 
-void* darray_create(void* arr, int capacity) {
+darray darray_create(darray arr, int capacity) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
     header = RL_REALLOC(header,sizeof(darray_header) + (header->stride * capacity));
@@ -18,7 +18,7 @@ void* darray_create(void* arr, int capacity) {
 }
 
 // Given capacity and size, gives us pointer to the void* array
-void* darray_init(int capacity, int stride) {
+darray darray_init(int capacity, int stride) {
     // Malloc 32 bits cap, 32 bits size, 32 bits stride + 5 * stride bytes for array
     void* ptr = RL_MALLOC(sizeof(darray_header) + stride * capacity);
 
@@ -38,7 +38,7 @@ void* darray_init(int capacity, int stride) {
 }
 
 // Push element onto darray
-void* darray_push(void* arr, void* item) {
+darray darray_push(darray arr, void* item) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
@@ -60,7 +60,7 @@ void* darray_push(void* arr, void* item) {
 }
 
 // Insert element to array at index
-void* darray_insert(void* arr, void* item, int index) {
+darray darray_insert(darray arr, void* item, int index) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
@@ -87,7 +87,7 @@ void* darray_insert(void* arr, void* item, int index) {
 }
 
 // Removes item from end of arr
-void* darray_pop(void* arr) {
+darray darray_pop(darray arr) {
     // Parse out darrray_header from ptr
 
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
@@ -111,7 +111,7 @@ void* darray_pop(void* arr) {
 //           ^ item to be removed
 //
 // memcpy(&2, &3, 6 - 3 * stride);
-void* darray_pop_at(void* arr, int index) {
+darray darray_pop_at(darray arr, int index) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
@@ -144,7 +144,7 @@ void* darray_pop_at(void* arr, int index) {
 //
 // memcpy(&2, &3, 6 - 3 * stride);
 // memcpy(&10, &2, header->stride);
-void* darray_insert_at(void* arr, void* item, int index) {
+darray darray_insert_at(darray arr, void* item, int index) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
@@ -179,7 +179,7 @@ void* darray_insert_at(void* arr, void* item, int index) {
 }
 
 // free up our memory starting at header ptr
-void darray_free(void* arr) {
+void darray_free(darray arr) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
@@ -189,7 +189,7 @@ void darray_free(void* arr) {
 }
 
 // Insert element to array at index
-void* darray_get(void* arr, int index) {
+void* darray_get(darray arr, int index) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
@@ -204,7 +204,7 @@ void* darray_get(void* arr, int index) {
 }
 
 // Set item in darray at index
-void darray_set(void* arr, void* item, int index) {
+void darray_set(darray arr, void* item, int index) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
@@ -219,7 +219,7 @@ void darray_set(void* arr, void* item, int index) {
 }
 
 // Get length of darray
-int darray_length(void* arr) {
+int darray_length(darray arr) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 

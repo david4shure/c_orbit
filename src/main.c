@@ -87,7 +87,7 @@ void draw_orbital_lines(void* orbital_positions) {
         // Draw the dang line
         /* DrawPoint3D(TF(vector_from_physical_to_world(*current_pos)),WHITE); */
 
-        Color col = interpolate_color(RED,GREEN,current_pos->time_at_point/current_pos->period);
+        Color col = BLUE;
 
         DrawLine3D(TF(vector_from_physical_to_world(current_pos->point)), TF(vector_from_physical_to_world(prev_pos->point)), col);
 
@@ -129,6 +129,12 @@ int main(void) {
     // DEBUG : r={2646.36390,0.00000,172135.51695},v={2.15104,0.00000,-0.04530}
     DVector3 moon_position = {2646.36390,0.00000,172135.51695};
     DVector3 moon_velocity = {2.15104,0.00000,-0.04530};
+
+    // X =-1.434469380595836E+05 Y =-3.679580723218923E+05 Z =-3.718096192515444E+04
+    // VX= 5.910407088277736E-01 VY=-4.828271439706466E-01 VZ= 3.566713870051011E-02
+
+    /* DVector3 moon_position = {-1.434469380595836E+05,-3.679580723218923E+05,-3.718096192515444E+04}; */
+    /* DVector3 moon_velocity = { 5.910407088277736E-01,-4.828271439706466E-01, 3.566713870051011E-02}; */
 
     PhysicalState RV = {
         .r = moon_position,
@@ -174,7 +180,7 @@ int main(void) {
     float r_at_sphere_of_influence = calculate_sphere_of_influence_r(EARTH_SEMIMAJOR_AXIS_KM, eles.mass_of_parent, eles.mass_of_grandparent);
     float r_at_soi_world_coords = r_at_sphere_of_influence * KM_TO_RENDER_UNITS;
 
-    void* orbital_lines;
+    darray orbital_lines;
 
     // Initial slider value and integer input value
     float sliderValue = 50.0f;
@@ -189,7 +195,7 @@ int main(void) {
 
         UpdatePhysicsClock(&clock, delta);
 
-        orbital_lines = propagate_orbit(RV, clock.clock_seconds, M_naught, t_naught,r_at_sphere_of_influence*3);
+        orbital_lines = compute_orbital_lines(RV, clock.clock_seconds, M_naught, t_naught,r_at_sphere_of_influence*3);
         int len_lines = darray_length(orbital_lines);
 
         RV = rv_from_r0v0(RV,clock.delta_seconds); 
@@ -252,6 +258,7 @@ int main(void) {
                 DrawSphereWires(TF(moon_pos_world),(MOON_RADIUS_KM * KM_TO_RENDER_UNITS),10,10,GRAY);
                 DrawSphereWires(sphere_pos,(r_at_soi_world_coords),10,10,(Color){.r=255, .b=182, .g=193,.a=50});
             EndMode3D();
+
             draw_orbital_parameters(eles,len_lines);
 
             float max_distance = 5000.0;

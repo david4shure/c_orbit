@@ -1,8 +1,6 @@
 #ifndef DMATH_H_CORBIT
 #define DMATH_H_CORBIT
 
-#include <math.h>
-
 // Types and Structures Definition
 typedef struct DVector2 {
     double x;

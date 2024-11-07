@@ -5,6 +5,13 @@
 
 #include "corbit_math.h"
 
+// All units are in Kilometers, Seconds, Newtons, KM/s, etc.
+typedef struct PhysicalParameters {
+    double radius;
+    double mass;
+    double grav_param;
+} PhysicalParameters;
+
 // We do everything in radians here
 typedef struct OrbitalElements {
     // Physical parameters of an orbit
@@ -41,8 +48,8 @@ typedef struct PhysicalState {
 } PhysicalState;
 
 typedef struct LagrangeCoefs {
-    double f; // f
-    double g; // g
+    double f;
+    double g;
 } LagrangeCoefs;
 
 // Time derivatives of f and g, f_dot, g_dot
@@ -151,6 +158,7 @@ DVector3 perifocal_coords_to_inertial_coords(DVector2 pq,double long_of_asc_node
 // Applies transform to convert from inertial coords back to perifocal coords
 DVector2 inertial_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_node, double arg_of_periapsis, double inclination);
 
+// Computes periapsis distance for an orbit
 double periapsis_distance(OrbitalElements oe);
 
 #endif
