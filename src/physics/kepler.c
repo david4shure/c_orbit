@@ -194,10 +194,8 @@ double distance_sphere_coords(double e, double a, double E) {
     return a * (1. - e * cos(E));
 }
 
-
 OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch, double time_at_epoch) {
     double eps = 1.e-10; // Small threshold to handle near-zero values
-
     double grav_param = 398600.0; // Gravitational parameter (km^3/s^2)
 
     // R,V position velocity vectors
@@ -207,24 +205,26 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
     // r,v magnitudes of R and V
     double r = DVector3Length(R);
     double v = DVector3Length(V);
-
     // R dot V / r
     double vr = DVector3DotProduct(R, V) / r;
 
     // Angular momentum vector
     DVector3 H = DVector3CrossProduct(R, V);
-
     // Angular momentum magnitude
     double h = DVector3Length(H);
 
     // Inclination
     double i = acos(H.z / h);
 
-    DVector3 z_ident = { 0, 0, 1 };
+    // Sometimes happens with floating point error H.z / h could eq
+    // 1.00000000001000
+    if (isnan(i)) {
+        i = 0.0;
+    }
 
+    DVector3 z_ident = { 0, 0, 1 };
     // Node vector (cross product of Z and H)
     DVector3 N = DVector3CrossProduct(z_ident, H);
-
     // Magnitude of node vector
     double n = DVector3Length(N);
 
@@ -251,24 +251,26 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
     // Eccentricity vector
     double term1 = (v * v - grav_param / r);
     double inv_μ = 1.0f / grav_param;
-
     DVector3 E = DVector3Scale(DVector3Subtract(DVector3Scale(R, term1), DVector3Scale(V, r * vr)), inv_μ);
-
     // Eccentricity magnitude
     double e = DVector3Length(E);
 
     // Argument of periapsis (w)
-    double w;
-    if (n < eps) {
-        w = 0; // Set to 0 for circular orbits
-    } else {
-        if (e > eps) {
-            w = acos(DVector3DotProduct(N, E) / (n * e));
-            if (E.z < 0) {
-                w = 2 * D_PI - w;
-            }
+    double w = 0.0;
+    if (e > eps) {
+        if (n > eps) {
+            // Non-equatorial orbit: Use node vector (N)
+            double cos_w = DVector3DotProduct(N, E) / (n * e);
+            cos_w = fmax(-1.0, fmin(1.0, cos_w));  // Clamp to [-1, 1]
+            w = acos(cos_w);
+            if (E.z < 0) w = 2 * M_PI - w;  // Correct quadrant
         } else {
-            w = 0;
+            // Equatorial orbit: Use x-axis reference
+            DVector3 x_ident = {1, 0, 0};  // Reference direction in the equatorial plane
+            double cos_w = DVector3DotProduct(x_ident, E) / e;
+            cos_w = fmax(-1.0, fmin(1.0, cos_w));  // Clamp to [-1, 1]
+            w = acos(cos_w);
+            if (E.y < 0) w = 2 * M_PI - w;  // Correct quadrant for equatorial plane
         }
     }
 
@@ -289,10 +291,8 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
             Ta = 2 * D_PI - acos(DVector3DotProduct(N, R) / (n * r));
         }
     }
-
     // Semi-major axis (a)
     double a = h * h / (grav_param * (1 - e * e));
-
     // Eccentric anomaly (Ea) or hyperbolic anomaly (Ha), and mean anomaly (Ma)
     double Ea = 0, Ha = 0, Ma = 0;
     if (e >= 1.0) {
@@ -309,15 +309,13 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
     // Wrap mean anomaly to [0, 2π]
     Ma = fmod(Ma, 2 * D_PI);
     if (Ma < 0) {
-        Ma += 2 * D_PI;
+        Ma = 2 * D_PI - Ma;
     }
 
     // Orbital period (T)
     double T = 2.0 * D_PI * sqrt(pow(a, 3) / grav_param);
-
     // Periapsis = a(1-e)
     double periapsis = a * (1.0 - e);
-
     // Similarly for apoapsis = a(1+e)
     double apoapsis = a * (1.0 + e);
 
@@ -346,6 +344,8 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
         .apoapsis_distance = apoapsis,
     };
 
+    Info("computed the following orbital elements\n");
+    print_orbital_elements(elems);
     return elems;
 }
 

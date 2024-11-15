@@ -128,8 +128,10 @@ int main(void) {
 
     // DEBUG : r={2646.36390,0.00000,172135.51695},v={2.15104,0.00000,-0.04530}
     // r={535344.68601,0.00000,-253679.25784},v={0.61903,0.00000,-0.98094}
-    DVector3 moon_position = {535344.68601,0.00000,-253679.25784};
-    DVector3 moon_velocity = {0.61903,0.00000,-0.98094};
+    DVector3 moon_position = {384400.0,0.0,0.0};
+    DVector3 moon_velocity = {0.0,1.022,0.0};
+    /* DVector3 moon_position = {535344.68601,0.00000,-253679.25784}; */
+    /* DVector3 moon_velocity = {0.61903,0.00000,-0.98094}; */
 
     // X =-1.434469380595836E+05 Y =-3.679580723218923E+05 Z =-3.718096192515444E+04
     // VX= 5.910407088277736E-01 VY=-4.828271439706466E-01 VZ= 3.566713870051011E-02
@@ -196,7 +198,7 @@ int main(void) {
 
         UpdatePhysicsClock(&clock, delta);
 
-        orbital_lines = compute_orbital_lines(RV, clock.clock_seconds, M_naught, t_naught,r_at_sphere_of_influence*3);
+        orbital_lines = compute_orbital_lines(RV, clock.clock_seconds, 0.0, 0.0,r_at_sphere_of_influence*3);
         int len_lines = darray_length(orbital_lines);
 
         RV = rv_from_r0v0(RV,clock.delta_seconds); 
