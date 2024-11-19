@@ -1,28 +1,44 @@
-#ifndef TEST_UTILS_H
-#define TEST_UTILS_H
-
-#include <stdio.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#ifndef ASSERTIONS_H
+#define ASSERTIONS_H
 
-// Epsilon for floating-point comparison
-#define EPSILON 1e-6
 
-// Helper macros for assertions
-#define ASSERT_EQ_DOUBLE(expected, actual) \
+#define ASSERT_EQ(expected, actual) \
+    if ((expected) != (actual)) { \
+        fprintf(stderr, "[FAIL] %s:%d: Expected %d, got %d\n", __FILE__, __LINE__, (expected), (actual)); \
+        exit(1); \
+    } else { \
+        printf("[PASS] %s:%d: %d == %d\n", __FILE__, __LINE__, (expected), (actual)); \
+    }
+
+#define ASSERT_NEAR(expected, actual, epsilon) \
+    if (fabs((expected) - (actual)) > (epsilon)) { \
+        fprintf(stderr, "[FAIL] %s:%d: Expected %f, got %f\n", __FILE__, __LINE__, (expected), (actual)); \
+        exit(1); \
+    } else { \
+        printf("[PASS] %s:%d: %f == %f\n", __FILE__, __LINE__, (expected), (actual)); \
+    }
+
+
+#define ASSERT_EQ_DVECTOR3(expected, actual, epsilon) \
     do { \
-        if (fabs((expected) - (actual)) > EPSILON) { \
-            printf("[FAIL] %s:%d: Expected %f, got %f\n", __FILE__, __LINE__, (expected), (actual)); \
+        printf("Expected Vector: (%.6f, %.6f, %.6f)\n", (expected).x, (expected).y, (expected).z); \
+        printf("Actual Vector:   (%.6f, %.6f, %.6f)\n", (actual).x, (actual).y, (actual).z); \
+        double x_diff = fabs((expected).x - (actual).x); \
+        double y_diff = fabs((expected).y - (actual).y); \
+        double z_diff = fabs((expected).z - (actual).z); \
+        if (x_diff > epsilon || y_diff > epsilon || z_diff > epsilon) { \
+            fprintf(stderr, "[FAIL] %s:%d: Vector mismatch: |dx|=%.6f, |dy|=%.6f, |dz|=%.6f\n", \
+                __FILE__, __LINE__, x_diff, y_diff, z_diff); \
+            exit(1); \
         } else { \
-            printf("[PASS] %s:%d: %f == %f\n", __FILE__, __LINE__, (expected), (actual)); \
+            printf("[PASS] %s:%d: Vector match within epsilon %.6f\n", __FILE__, __LINE__, epsilon); \
         } \
     } while (0)
 
-#define ASSERT_EQ_VEC3(expected, actual) \
-    do { \
-        ASSERT_EQ_DOUBLE((expected).x, (actual).x); \
-        ASSERT_EQ_DOUBLE((expected).y, (actual).y); \
-        ASSERT_EQ_DOUBLE((expected).z, (actual).z); \
-    } while (0)
 
-#endif // TEST_UTILS_H
+
+#endif // ASSERTIONS_H
 

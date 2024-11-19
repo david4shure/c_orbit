@@ -129,7 +129,7 @@ DVector3 solve_kepler_ellipse_inertial(OrbitalElements elems, double M_naught, d
 
 // Solves keplers equation for the carteesian coords in perifocal frame 
 // DVector2 because only x and y are relevant for perifocal frame
-DVector2 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, double t_naught, double t); 
+DVector3 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, double t_naught, double t); 
 
 // Gets R (position), V (velocity) vectors from OrbitalElements
 PhysicalState rv_from_orb_elems(OrbitalElements elems);
@@ -153,10 +153,10 @@ void print_orbital_elements(OrbitalElements e);
 void print_physical_state(PhysicalState rv);
 
 // Applies necessary transforms to convert perifocal coords to inertial coords
-DVector3 perifocal_coords_to_inertial_coords(DVector2 pq,double long_of_asc_node,double arg_of_periapsis, double inclination);
+DVector3 perifocal_coords_to_inertial_coords(DVector3 pq,double long_of_asc_node,double arg_of_periapsis, double inclination);
 
 // Applies transform to convert from inertial coords back to perifocal coords
-DVector2 inertial_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_node, double arg_of_periapsis, double inclination);
+DVector3 inertial_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_node, double arg_of_periapsis, double inclination);
 
 // Computes periapsis distance for an orbit
 double periapsis_distance(OrbitalElements oe);

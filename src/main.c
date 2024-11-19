@@ -124,7 +124,7 @@ void draw_orbital_parameters(OrbitalElements oe, int num_lines) {
 //------------------------------------------------------------------------------------
 int main(void) {
     // Initialize Loggeruuu
-    InitializeLogger(LOG_LEVEL);
+    InitializeLogger(LOG_LEVEL,true);
 
     // DEBUG : r={2646.36390,0.00000,172135.51695},v={2.15104,0.00000,-0.04530}
     // r={535344.68601,0.00000,-253679.25784},v={0.61903,0.00000,-0.98094}
