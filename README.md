@@ -11,6 +11,13 @@
     - [See here](https://github.com/david4shure/c_orbit/blob/master/src/physics/orbital_lines.c)
 - Sphere of Influence Sphere Rendered
 
+# Upcoming features
+- Full orbital propagation using numerical integration
+    - 2 Body trajectories, to the moon and back for example.
+- Fully generalized patched conics
+- Load orbital data from simple text files which define arbitrary hierarchies of bodies and their orbital elements
+    - Camera functions to traverse this hierarchy
+
 # Screenshots
 
 - Parabolic / Hyperbolic Trajectories
