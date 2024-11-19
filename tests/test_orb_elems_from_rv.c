@@ -14,7 +14,7 @@ int main() {
         .mass_of_grandparent = SUN_MASS_KG,
     };
 
-    OrbitalElements oe = orb_elems_from_rv(RV, 0.0, 0.0);
+    ClassicalOrbitalElements oe = rv_to_classical_elements(RV);
 
     print_orbital_elements(oe);
 

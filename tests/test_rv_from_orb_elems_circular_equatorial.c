@@ -14,8 +14,8 @@ int main() {
         .mass_of_grandparent = SUN_MASS_KG
     };
 
-    OrbitalElements oe = orb_elems_from_rv(initial_state, 0.0, 0.0);
-    PhysicalState final_state = rv_from_orb_elems(oe);
+    ClassicalOrbitalElements oe = rv_to_classical_elements(initial_state);
+    PhysicalState final_state = classical_elements_to_rv(oe);
 
     ASSERT_EQ_DVECTOR3(initial_state.r, final_state.r, 1e-3);
     ASSERT_EQ_DVECTOR3(initial_state.v, final_state.v, 1e-3);

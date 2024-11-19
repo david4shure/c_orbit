@@ -103,7 +103,7 @@ void draw_element(char* format_text, double value, int x, int y, Color color) {
     DrawText(buffer,x,y,2,color);
 }
 
-void draw_orbital_parameters(OrbitalElements oe, int num_lines) {
+void draw_orbital_parameters(ClassicalOrbitalElements oe, int num_lines) {
     int left_padding = 15;
     int padding_between_rows = 13;
     Color text_color = RED;
@@ -148,7 +148,7 @@ int main(void) {
 
     float M_naught = 2.35585;
     float t_naught = 0.0;
-    OrbitalElements eles = orb_elems_from_rv(RV,0.0,0.0);
+    ClassicalOrbitalElements eles = rv_to_classical_elements(RV);
 
     PhysicsTimeClock clock = { .tick_interval_seconds = 86400, .mode = Elapsing, .scale = 10000.0, .delta_seconds = 0.0, .clock_seconds = 0.0};
 
@@ -198,12 +198,12 @@ int main(void) {
 
         UpdatePhysicsClock(&clock, delta);
 
-        orbital_lines = compute_orbital_lines(RV, clock.clock_seconds, 0.0, 0.0,r_at_sphere_of_influence*3);
+        orbital_lines = compute_orbital_lines(RV, clock.clock_seconds, r_at_sphere_of_influence*3);
         int len_lines = darray_length(orbital_lines);
 
         RV = rv_from_r0v0(RV,clock.delta_seconds); 
-        OrbitalElements neweles = orb_elems_from_rv(RV, 0.0, 0.0);
-        PhysicalState lilrv = rv_from_orb_elems(eles);
+        ClassicalOrbitalElements neweles = rv_to_classical_elements(RV);
+        PhysicalState lilrv = classical_elements_to_rv(eles);
         Info("physical state r = (%.2f,%.2f,%.2f), v = (%.2f, %.2f, %.2f)\n",RV.r.x,RV.r.y,RV.r.z,RV.v.x,RV.v.y,RV.v.z);
         Info("Eles = \n");
         print_orbital_elements(neweles);
@@ -211,7 +211,7 @@ int main(void) {
 
         Debug("r={%.5f,%.5f,%.5f},v={%.5f,%.5f,%.5f}\n",RV.r.x,RV.r.y,RV.r.z,RV.v.x,RV.v.y,RV.v.z);
 
-        eles = orb_elems_from_rv(RV, M_naught, t_naught);
+        eles = rv_to_classical_elements(RV);
         print_orbital_elements(eles);
         moon_position = RV.r;
         moon_velocity = RV.v;

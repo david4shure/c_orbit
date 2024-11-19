@@ -22,7 +22,7 @@ int main() {
     double TA_rad = TA_deg * D_DEG2RAD;
 
     // Create Orbital Elements structure
-    OrbitalElements coe = {
+    ClassicalOrbitalElements coe = {
         .ang_momentum = h,
         .eccentricity = e,
         .long_of_asc_node = RA_rad,
@@ -33,7 +33,7 @@ int main() {
     };
 
     // Compute state vector (position and velocity)
-    PhysicalState sv = rv_from_orb_elems(coe);
+    PhysicalState sv = classical_elements_to_rv(coe);
     print_physical_state(sv);
 
     // Log inputs and outputs

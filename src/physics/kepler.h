@@ -13,7 +13,7 @@ typedef struct PhysicalParameters {
 } PhysicalParameters;
 
 // We do everything in radians here
-typedef struct OrbitalElements {
+typedef struct ClassicalOrbitalElements {
     // Physical parameters of an orbit
     double mass_of_parent; // Mass of the central body KG e.g. Earth
     double mass_of_grandparent; // Mass of the central body's central body KG e.g. Sun
@@ -38,7 +38,7 @@ typedef struct OrbitalElements {
     double mean_motion; // Mean motion = sqrt(grav_param/a^3)
     double periapsis_distance; // distance at periapsis
     double apoapsis_distance; // distance at apoapsis
-} OrbitalElements;
+} ClassicalOrbitalElements;
 
 typedef struct PhysicalState {
     DVector3 r; // Position in inertial frame 
@@ -99,16 +99,19 @@ double stump_s(double z);
 double distance_sphere_coords(double e, double a, double E);
 
 // Computes the time until the desired_true_anomaly given then orbital elements and current time
-TimeOfPassage compute_time_until(OrbitalElements oe, double desired_true_anomaly, double t);
+TimeOfPassage compute_time_until(ClassicalOrbitalElements oe, double desired_true_anomaly, double t);
 
 // Gives the distance at which the sphere of influence begins/ends for the inner body
 double calculate_sphere_of_influence_r(double a, double mass_of_body, double mass_of_satellite);
 
 // Compute the time till periapsis for an orbit
-TimeOfPassage compute_time_of_passage(OrbitalElements oe, double grav_param, double t);
+TimeOfPassage compute_time_of_passage(ClassicalOrbitalElements oe, double grav_param, double t);
 
 // Gets orbital elements in struct form from R (position) V (velcoity) vectors.
-OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch, double time_at_epoch);
+ClassicalOrbitalElements rv_to_classical_elements(PhysicalState rv);
+
+// Gets R (position), V (velocity) vectors from ClassicalOrbitalElements
+PhysicalState classical_elements_to_rv(ClassicalOrbitalElements elems);
 
 // Solves for universal anomaly (algorithm 3.3, curtis D.5)
 // Units: km^0.5
@@ -125,14 +128,12 @@ PhysicalState rv_from_r0v0(PhysicalState rv, double t);
 
 // Solves keplers equation for the carteesian coords in inertial frame
 // with proper rotations applied (inclination, arg periapsis, long asc, etc)
-DVector3 solve_kepler_ellipse_inertial(OrbitalElements elems, double M_naught, double t_naught, double t);
+DVector3 solve_kepler_ellipse_inertial(ClassicalOrbitalElements elems, double M_naught, double t_naught, double t);
 
 // Solves keplers equation for the carteesian coords in perifocal frame 
 // DVector2 because only x and y are relevant for perifocal frame
-DVector3 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, double t_naught, double t); 
+DVector3 solve_kepler_ellipse_perifocal(ClassicalOrbitalElements elems, double M_naught, double t_naught, double t); 
 
-// Gets R (position), V (velocity) vectors from OrbitalElements
-PhysicalState rv_from_orb_elems(OrbitalElements elems);
 
 // Converts a Vec3 in World render coords to physical coords
 DVector2 vector2_from_world_to_physical(DVector2 vec);
@@ -147,7 +148,7 @@ DVector3 vector_from_world_to_physical(DVector3 vec);
 DVector3 vector_from_physical_to_world(DVector3 vec);
 
 // Prints orbital elements duh
-void print_orbital_elements(OrbitalElements e);
+void print_orbital_elements(ClassicalOrbitalElements e);
 
 // Prints physical state duh
 void print_physical_state(PhysicalState rv);
@@ -159,6 +160,6 @@ DVector3 perifocal_coords_to_inertial_coords(DVector3 pq,double long_of_asc_node
 DVector3 inertial_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_node, double arg_of_periapsis, double inclination);
 
 // Computes periapsis distance for an orbit
-double periapsis_distance(OrbitalElements oe);
+double periapsis_distance(ClassicalOrbitalElements oe);
 
 #endif

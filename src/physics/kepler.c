@@ -160,7 +160,7 @@ double calculate_sphere_of_influence_r(double a, double mass_of_parent, double m
     return a * powf(mass_of_parent/mass_of_grandparent,2.0/5.0);
 }
 
-TimeOfPassage compute_time_until(OrbitalElements oe, double desired_true_anomaly, double t) {
+TimeOfPassage compute_time_until(ClassicalOrbitalElements oe, double desired_true_anomaly, double t) {
     // First check orbit type
     if (oe.eccentricity < 1.0) {
         // t-M/n = t_naught !!
@@ -206,7 +206,7 @@ double distance_sphere_coords(double e, double a, double E) {
     return a * (1. - e * cos(E));
 }
 
-OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch, double time_at_epoch) {
+ClassicalOrbitalElements rv_to_classical_elements(PhysicalState rv) {
    double eps = 1.e-10;
    double grav_param = rv.mass_of_parent * G;
 
@@ -308,14 +308,12 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
    double apoapsis = a*(1.0 + e);
    double p = h*h/grav_param;  // semi-parameter
 
-   return (OrbitalElements){
+   return (ClassicalOrbitalElements){
        .semimajor_axis = a,
        .eccentricity = e,
        .eccentric_anomaly = Ea,
        .hyperbolic_anomaly = Ha,
        .mean_anomaly = wrap_angle(Ma),
-       .mean_anomaly_at_epoch = mean_anomaly_at_epoch,
-       .time_at_epoch = time_at_epoch,
        .inclination = wrap_angle(i),
        .long_of_asc_node = wrap_angle(Ra),
        .arg_of_periapsis = wrap_angle(w),
@@ -333,7 +331,7 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
    };
 }
 
-void print_orbital_elements(OrbitalElements elems) {
+void print_orbital_elements(ClassicalOrbitalElements elems) {
     Debug("------\n");
     Debug("semi-major axis = %f\n",elems.semimajor_axis);
     Debug("eccentricity = %f\n",elems.eccentricity);
@@ -357,7 +355,7 @@ void print_physical_state(PhysicalState rv) {
     Debug("-------\n");
 }
 
-PhysicalState rv_from_orb_elems(OrbitalElements elems) {
+PhysicalState classical_elements_to_rv(ClassicalOrbitalElements elems) {
     double mu = elems.grav_param;
     double h = elems.ang_momentum;
 
@@ -443,7 +441,7 @@ DVector3 vector_from_world_to_physical(DVector3 vec) {
     return transformed;
 }
 
-DVector3 solve_kepler_ellipse_perifocal(OrbitalElements elems, double M_naught, double t_naught, double t) {
+DVector3 solve_kepler_ellipse_perifocal(ClassicalOrbitalElements elems, double M_naught, double t_naught, double t) {
     double mean_anomaly = mean_anom(M_naught,t,t_naught, elems.period);
 
     // NOTE: If your mean anomaly goes higher than 2 D_PI
@@ -642,11 +640,11 @@ DVector3 inertial_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_no
     return (DVector3){.x = x_perifocal, .y = y_perifocal, .z = z_perifocal};
 }
 
-DVector3 solve_kepler_ellipse_inertial(OrbitalElements elems, double M_naught, double t_naught, double t) {
+DVector3 solve_kepler_ellipse_inertial(ClassicalOrbitalElements elems, double M_naught, double t_naught, double t) {
     DVector3 perifocal_coords = solve_kepler_ellipse_perifocal(elems, M_naught, t_naught, t);
     return perifocal_coords_to_inertial_coords(perifocal_coords, elems.long_of_asc_node, elems.arg_of_periapsis, elems.inclination);
 }
 
-double periapsis_distance(OrbitalElements oe) {
+double periapsis_distance(ClassicalOrbitalElements oe) {
     return oe.semimajor_axis * (1.0 - oe.eccentricity);
 }
