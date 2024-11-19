@@ -51,3 +51,10 @@ c_orbit/
 CPackConfig.cmake
 CPackSourceConfig.cmake
 
+
+tests/test_intermediate_consistency
+tests/test_orb_elems_from_rv
+tests/test_perifocal_to_inertial_and_back
+tests/test_rv_from_orb_elems_circular_equatorial
+tests/test_rv_from_orb_elems_circular_inclined
+tests/test_rv_from_orb_elems_failure

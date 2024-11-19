@@ -89,6 +89,7 @@ darray compute_orbital_lines_non_ellipse(OrbitalElements oe, PhysicalState rv, f
 darray compute_orbital_lines_ellipse(OrbitalElements oe, PhysicalState rv, float t, float z_far) {
     Info("Starting propagate_orbit_ellipse: ecc=%.6f, true_anomaly=%.2f", 
          oe.eccentricity, oe.true_anomaly * 180.0 / M_PI);
+    Info("R = (%.5f,%.5f,%.5f), V = (%.5f,%.5f,%.5f)\n",rv.r.x,rv.r.y,rv.r.z,rv.v.x,rv.v.y,rv.v.z);
 
     // Loop through true anomaly by step size
     darray arr = darray_init(1850, sizeof(PointBundle));
