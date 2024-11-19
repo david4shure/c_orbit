@@ -6,6 +6,16 @@
 #include "assert.h"
 #include "../../tests/test_utils.h"
 
+double wrap_angle(double angle) {
+    if (angle < 0) {
+        return 2 * D_PI + angle;
+    } else if (angle > 2 * D_PI) {
+        return angle - 2 * D_PI;
+    } else {
+        return angle;
+    }
+}
+
 double mean_anom(double mean_anomaly_at_epoch, double time, double time_at_epoch, double orbital_period) {
     // First calculate mean motion
     // Given by n = (2 * D_PI) / T
@@ -303,13 +313,13 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
        .eccentricity = e,
        .eccentric_anomaly = Ea,
        .hyperbolic_anomaly = Ha,
-       .mean_anomaly = Ma,
+       .mean_anomaly = wrap_angle(Ma),
        .mean_anomaly_at_epoch = mean_anomaly_at_epoch,
        .time_at_epoch = time_at_epoch,
-       .inclination = i,
-       .long_of_asc_node = Ra,
-       .arg_of_periapsis = w,
-       .true_anomaly = Ta,
+       .inclination = wrap_angle(i),
+       .long_of_asc_node = wrap_angle(Ra),
+       .arg_of_periapsis = wrap_angle(w),
+       .true_anomaly = wrap_angle(Ta),
        .grav_param = grav_param,
        .period = T,
        .ang_momentum = h,
@@ -348,58 +358,66 @@ void print_physical_state(PhysicalState rv) {
 }
 
 PhysicalState rv_from_orb_elems(OrbitalElements elems) {
-   double eps = 1.e-10;
-   double mu = elems.grav_param;
-   double h = elems.ang_momentum;
-   
-   // Preserve original radius by using a and e
-   double r = elems.periapsis_distance/(1.0 - elems.eccentricity);
+    double mu = elems.grav_param;
+    double h = elems.ang_momentum;
 
-   // Position in perifocal coordinates
-   DVector3 r_perifocal = {
-       r * cos(elems.true_anomaly),
-       r * sin(elems.true_anomaly),
-       0.0
-   };
+    // Calculate the radius
+    double r = (h * h / mu) / (1.0 + elems.eccentricity * cos(elems.true_anomaly));
 
-   // Velocity in perifocal coordinates
-   // Use angular momentum for velocity magnitude
-   double v_r = -mu * elems.eccentricity * sin(elems.true_anomaly) / h;
-   double v_theta = mu * (1.0 + elems.eccentricity * cos(elems.true_anomaly)) / h;
-   DVector3 v_perifocal = {v_r, v_theta, 0.0};
+    // Perifocal position vector
+    DVector3 r_perifocal = {
+        r * cos(elems.true_anomaly),
+        r * sin(elems.true_anomaly),
+        0.0
+    };
 
-   Debug("Perifocal Position: (%.10f, %.10f, %.10f)\n", 
-         r_perifocal.x, r_perifocal.y, r_perifocal.z);
-   Debug("Perifocal Velocity: (%.10f, %.10f, %.10f)\n", 
-         v_perifocal.x, v_perifocal.y, v_perifocal.z);
+    // Perifocal velocity components
+    double v_r = (mu / h) * elems.eccentricity * sin(elems.true_anomaly);
+    double v_theta = (mu / h) * (1.0 + elems.eccentricity * cos(elems.true_anomaly));
 
-   // Transform perifocal coordinates to inertial coordinates
-   DVector3 r_inertial = perifocal_coords_to_inertial_coords(
-       r_perifocal,
-       elems.long_of_asc_node,
-       elems.arg_of_periapsis,
-       elems.inclination
-   );
+    // Perifocal velocity vector
+    DVector3 v_perifocal = {
+        v_r * cos(elems.true_anomaly) - v_theta * sin(elems.true_anomaly),
+        v_r * sin(elems.true_anomaly) + v_theta * cos(elems.true_anomaly),
+        0.0
+    };
 
-   DVector3 v_inertial = perifocal_coords_to_inertial_coords(
-       v_perifocal,
-       elems.long_of_asc_node,
-       elems.arg_of_periapsis,
-       elems.inclination
-   );
+    // Log perifocal coordinates
+    Debug("Perifocal Position: (%.10f, %.10f, %.10f)\n",
+          r_perifocal.x, r_perifocal.y, r_perifocal.z);
+    Debug("Perifocal Velocity: (%.10f, %.10f, %.10f)\n",
+          v_perifocal.x, v_perifocal.y, v_perifocal.z);
 
-   Debug("Inertial Position: (%.10f, %.10f, %.10f)\n", 
-         r_inertial.x, r_inertial.y, r_inertial.z);
-   Debug("Inertial Velocity: (%.10f, %.10f, %.10f)\n", 
-         v_inertial.x, v_inertial.y, v_inertial.z);
+    // Transform perifocal to inertial coordinates
+    DVector3 r_inertial = perifocal_coords_to_inertial_coords(
+        r_perifocal,
+        elems.long_of_asc_node,
+        elems.arg_of_periapsis,
+        elems.inclination
+    );
 
-   return (PhysicalState){
-       .r = r_inertial,
-       .v = v_inertial,
-       .mass_of_parent = elems.mass_of_parent,
-       .mass_of_grandparent = elems.mass_of_grandparent
-   };
+    DVector3 v_inertial = perifocal_coords_to_inertial_coords(
+        v_perifocal,
+        elems.long_of_asc_node,
+        elems.arg_of_periapsis,
+        elems.inclination
+    );
+
+    // Log inertial coordinates
+    Debug("Inertial Position: (%.10f, %.10f, %.10f)\n",
+          r_inertial.x, r_inertial.y, r_inertial.z);
+    Debug("Inertial Velocity: (%.10f, %.10f, %.10f)\n",
+          v_inertial.x, v_inertial.y, v_inertial.z);
+
+    // Return the physical state
+    return (PhysicalState){
+        .r = r_inertial,
+        .v = v_inertial,
+        .mass_of_parent = elems.mass_of_parent,
+        .mass_of_grandparent = elems.mass_of_grandparent
+    };
 }
+
 
 DVector2 vector2_from_physical_to_world(DVector2 vec) {
     DVector2 transformed = {vec.x * KM_TO_RENDER_UNITS_2D, vec.y * KM_TO_RENDER_UNITS_2D};

@@ -16,6 +16,8 @@ int main() {
 
     OrbitalElements oe = orb_elems_from_rv(RV, 0.0, 0.0);
 
+    print_orbital_elements(oe);
+
     ASSERT_NEAR(0.007274, oe.eccentricity, 1e-6);
     ASSERT_NEAR(387216.80439, oe.semimajor_axis, 1e-6);
     ASSERT_NEAR(0.0, oe.inclination, 1e-6);

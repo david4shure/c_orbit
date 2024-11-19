@@ -13,7 +13,7 @@ static const double D_DEG2RAD = D_PI/180.0f;
 static const double  G = 6.67430e-20; // km3kg−1s−2
 
 // Earth mass kg
-static const double EARTH_MASS_KG = 5.972e+24;
+static const double EARTH_MASS_KG = 5.972161874653522e24;
 
 // Moon mass kg
 static const double MOON_MASS_KG = 7.348e+22;

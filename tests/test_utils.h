@@ -10,7 +10,7 @@
 #define ASSERT_EQ(expected, actual) \
     InitializeLogger(DEBUG, true); \
     if ((expected) != (actual)) { \
-        Error("[FAIL] %s:%d: Expected %d, got %d\n", __FILE__, __LINE__, (expected), (actual)); \
+        Error("[FAIL] %s:%d: Expected %.5f, got %.5f\n", __FILE__, __LINE__, (expected), (actual)); \
         exit(1); \
     } else { \
         Log("[PASS] %s:%d: %d == %d\n", __FILE__, __LINE__, (expected), (actual)); \
