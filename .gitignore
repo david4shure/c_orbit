@@ -1,13 +1,53 @@
-src/CMakeFiles/CMakeDirectoryInformation.cmake
-src/Makefile
-src/cmake_install.cmake
-CMakeCache.txt
+# Build and Generated Files
+/build/
 CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+Makefile.*
+compile_commands.json
+
+# Dependencies and External Tools
+_deps/
+
+# Logs and Debug Files
+*.log
+
+# Temporary Testing Files
+Testing/Temporary/
+
+# Executables and Binaries
+src/c_orbit
+tests/test_harness
+
+# Object Files and Libraries
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+
+# IDE and Editor-Specific Files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.nvimlog
+
+# General OS Files
+.DS_Store
+Thumbs.db
+
+# Raylib Cache
+*.rlmeta
+
+# Other Cached Files
+.cache/
+
+# Corbit Build Directory (if present)
+c_orbit/
+
 CPackConfig.cmake
 CPackSourceConfig.cmake
-Makefile
-_deps/
-cmake_install.cmake
-compile_commands.json
-raylib-game-template/
-.cache/*
+

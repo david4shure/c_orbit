@@ -110,12 +110,12 @@ void draw_orbital_parameters(OrbitalElements oe, int num_lines) {
 
     Debug("LEN LINES %d\n",num_lines);
 
-    draw_element("e = %.2f", oe.eccentricity, left_padding, padding_between_rows, text_color);
-    draw_element("a = %.2f", oe.semimajor_axis, left_padding, padding_between_rows * 2, text_color);
-    draw_element("true anomaly = %.2f°", oe.true_anomaly * RAD2DEG, left_padding, padding_between_rows * 3, text_color);
-    draw_element("argument of periapsis = %.2f°", oe.arg_of_periapsis * RAD2DEG, left_padding, padding_between_rows * 4, text_color);
-    draw_element("inclination = %.2f°", oe.inclination * RAD2DEG, left_padding, padding_between_rows * 5, text_color);
-    draw_element("longitude of the ascending node = %.2f°", oe.long_of_asc_node * RAD2DEG, left_padding, padding_between_rows * 6, text_color);
+    draw_element("e = %.3f", oe.eccentricity, left_padding, padding_between_rows, text_color);
+    draw_element("a = %.3f", oe.semimajor_axis, left_padding, padding_between_rows * 2, text_color);
+    draw_element("true anomaly = %.3f°", oe.true_anomaly * RAD2DEG, left_padding, padding_between_rows * 3, text_color);
+    draw_element("argument of periapsis = %.3f°", oe.arg_of_periapsis * RAD2DEG, left_padding, padding_between_rows * 4, text_color);
+    draw_element("inclination = %.3f°", oe.inclination * RAD2DEG, left_padding, padding_between_rows * 5, text_color);
+    draw_element("longitude of the ascending node = %.3f°", oe.long_of_asc_node * RAD2DEG, left_padding, padding_between_rows * 6, text_color);
     draw_element("number of lines = %.0f", (double)num_lines, screenWidth-140, padding_between_rows, GREEN);
 }
 
@@ -202,6 +202,13 @@ int main(void) {
         int len_lines = darray_length(orbital_lines);
 
         RV = rv_from_r0v0(RV,clock.delta_seconds); 
+        OrbitalElements neweles = orb_elems_from_rv(RV, 0.0, 0.0);
+        PhysicalState lilrv = rv_from_orb_elems(eles);
+        Info("physical state r = (%.2f,%.2f,%.2f), v = (%.2f, %.2f, %.2f)\n",RV.r.x,RV.r.y,RV.r.z,RV.v.x,RV.v.y,RV.v.z);
+        Info("Eles = \n");
+        print_orbital_elements(neweles);
+        Info("rv_from_orb_elems r = (%.2f,%.2f,%.2f), v = (%.2f, %.2f, %.2f)\n",lilrv.r.x,lilrv.r.y,lilrv.r.z,lilrv.v.x,lilrv.v.y,lilrv.v.z);
+
         Debug("r={%.5f,%.5f,%.5f},v={%.5f,%.5f,%.5f}\n",RV.r.x,RV.r.y,RV.r.z,RV.v.x,RV.v.y,RV.v.z);
 
         eles = orb_elems_from_rv(RV, M_naught, t_naught);

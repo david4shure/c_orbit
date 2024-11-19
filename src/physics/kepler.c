@@ -291,8 +291,10 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
             Ta = 2 * D_PI - acos(DVector3DotProduct(N, R) / (n * r));
         }
     }
+
     // Semi-major axis (a)
     double a = h * h / (grav_param * (1 - e * e));
+
     // Eccentric anomaly (Ea) or hyperbolic anomaly (Ha), and mean anomaly (Ma)
     double Ea = 0, Ha = 0, Ma = 0;
     if (e >= 1.0) {
@@ -344,8 +346,6 @@ OrbitalElements orb_elems_from_rv(PhysicalState rv, double mean_anomaly_at_epoch
         .apoapsis_distance = apoapsis,
     };
 
-    Info("computed the following orbital elements\n");
-    print_orbital_elements(elems);
     return elems;
 }
 
@@ -573,6 +573,11 @@ PhysicalState rv_from_r0v0(PhysicalState rv, double t) {
 }
 
 DVector3 perifocal_coords_to_inertial_coords(DVector2 pq,double long_of_asc_node,double arg_of_periapsis, double inclination) {
+    // Validate input ranges
+    assert(long_of_asc_node >= 0 && long_of_asc_node <= 2 * M_PI);
+    assert(arg_of_periapsis >= 0 && arg_of_periapsis <= 2 * M_PI);
+    assert(inclination >= 0 && inclination <= M_PI);
+
     // Perform a single combined linear transformation on these perifocal 
     // coords to convert to inertial 3d space
     // cos Ω cos ω − sin Ω sin ω cos i 

@@ -110,7 +110,6 @@ darray compute_orbital_lines_ellipse(OrbitalElements oe, PhysicalState rv, float
 
         // Calculate distance
         double r = DVector3Length(position);
-        Debug("radius=%.5f\n",r);
 
         if(isnan(r)) {
             break;
