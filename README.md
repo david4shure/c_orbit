@@ -24,4 +24,4 @@
 <img width="1487" alt="Screenshot 2024-11-19 at 5 41 20 PM" src="https://github.com/user-attachments/assets/135dff61-7895-4d4b-9869-dd329fe5fb26">
 
 - Elliptical Orbits
-<img width="1497" alt="Screenshot 2024-11-19 at 5 38 17 PM" src="https://github.com/user-attachments/assets/3990b209-b347-4833-99cc-2254147efb45">
+<img width="1179" alt="Screenshot 2024-11-19 at 10 42 03 PM" src="https://github.com/user-attachments/assets/518b1665-c02c-41b1-b7a4-95ef9c0baabe">
