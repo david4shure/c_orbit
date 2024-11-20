@@ -105,6 +105,42 @@ void draw_orbital_lines(darray orbital_lines, ClassicalOrbitalElements oe, Physi
     }
 }
 
+
+void draw_body_label(ClassicalOrbitalElements oe, PhysicalState RV, Nodes n, PhysicsTimeClock clock, Camera3D camera, float time) {
+    float max_distance = 5000.0;
+    float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-RV.r.x,camera.position.y-RV.r.y,camera.position.z-RV.r.z});
+    float distance_scale_factor = max_distance/camera_to_moon_distance;
+    float time_scale_factor = sin(time*1.5)/4.0 + 1;
+
+    float scale_factor = distance_scale_factor * time_scale_factor;
+    double velocity = DVector3Length(RV.v);
+    char velocity_str[20];  // Buffer for the formatted string
+    // Format the float as a string
+    snprintf(velocity_str, sizeof(velocity_str), "V=%.2f KM/s", velocity);
+
+    DVector3 moon_pos_world = vector_from_physical_to_world(RV.r);
+    // sqrt((x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2)
+    float dist = DVector3Distance(moon_pos_world, TD(camera.position));
+
+    DVector3 periapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(oe, 0.0, 0.0, 0.0));
+    DVector3 apoapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(oe, 0.0, 0.0, oe.period/2.0));
+    DVector3 asc_node_point = vector_from_physical_to_world(n.asc);
+    DVector3 desc_node_point = vector_from_physical_to_world(n.desc);
+
+    Vector2 periapsis_point_camera = GetWorldToScreen(TF(periapsis_point), camera);
+    Vector2 apoapsis_point_camera = GetWorldToScreen(TF(apoapsis_point), camera);
+    Vector2 asc_point_camera = GetWorldToScreen(TF(asc_node_point), camera);
+    Vector2 desc_point_camera = GetWorldToScreen(TF(desc_node_point), camera);
+
+    Vector2 moon = GetWorldToScreen(TF(moon_pos_world), camera);
+
+    if (!is_object_behind_camera(camera.position, camera.target, TF(moon_pos_world))) {
+        DrawText("MOON",(int)moon.x - MeasureText("MOON",10)/2,(int)moon.y - MeasureText("MOON", 10),10,GREEN);
+        DrawText(velocity_str,(int)moon.x - MeasureText(velocity_str,10)/2,(int)moon.y - MeasureText(velocity_str,10),10,GREEN);
+    }
+}
+
+
 void draw_orbital_features(ClassicalOrbitalElements oe, PhysicalState RV, Nodes n, PhysicsTimeClock clock, Camera3D camera, float time) {
     float max_distance = 5000.0;
     float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-RV.r.x,camera.position.y-RV.r.y,camera.position.z-RV.r.z});
@@ -146,6 +182,10 @@ void draw_orbital_features(ClassicalOrbitalElements oe, PhysicalState RV, Nodes 
 
     if (!is_object_behind_camera(camera.position, camera.target, TF(apoapsis_point))) {
         DrawText("Apo",(int)apoapsis_point_camera.x - MeasureText("Apo",10)/2,(int)apoapsis_point_camera.y - MeasureText("Apo", 10),10,DARKBLUE);
+    }
+
+    if (oe.eccentricity >= 1.0) {
+        return;
     }
 
     if (!is_object_behind_camera(camera.position, camera.target, TF(asc_node_point))) {
@@ -250,7 +290,7 @@ int main(void) {
     // Initial slider value and integer input value
     float sliderValue = 50.0f;
     int intValue = 10;
-
+    bool should_draw_orbital_features = true;
 
     // Main game loop
     while (!WindowShouldClose())        // Detect window close button or ESC key
@@ -333,6 +373,10 @@ int main(void) {
             clock.scale /= 2;
         }
 
+        if(IsKeyPressed(KEY_V)) {
+            should_draw_orbital_features = !should_draw_orbital_features;
+        }
+
         eles = rv_to_classical_elements(RV);
 
 
@@ -351,14 +395,21 @@ int main(void) {
             SphericalCameraSystem(&r, &theta, &phi, &camera);
 
             Nodes n = compute_nodes(eles);
+
             draw_textual_orbital_elements(eles,darray_length(orbital_lines));
-            draw_orbital_features(eles, RV, n, clock, camera, time);
+            draw_body_label(eles, RV, n, clock, camera, time);
+
+            if (should_draw_orbital_features) {
+                draw_orbital_features(eles, RV, n, clock, camera, time);
+            }
 
             BeginMode3D(camera);
                 rlSetMatrixProjection(matProj);
 
-                draw_orbital_lines(orbital_lines,eles,RV,n,clock,camera,clock.clock_seconds);
-                darray_free(orbital_lines);
+                if (should_draw_orbital_features) {
+                    draw_orbital_lines(orbital_lines,eles,RV,n,clock,camera,clock.clock_seconds);
+                    darray_free(orbital_lines);
+                }
 
                 Vector3 sphere_pos = {0.0,0.0,0.0};
 
