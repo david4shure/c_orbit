@@ -19,6 +19,7 @@
 #include "raymath.h"
 #include "rcamera.h"
 #include "rlgl.h"
+#include <objc/objc.h>
 #include <stdint.h>
 #include <stdio.h>
 #include "raygui.h"
@@ -31,6 +32,7 @@
 #include "utils/rlutil.h"
 #include "utils/darray.h"
 #include "utils/logger.h"
+#include "physics/propagation.h"
 
 #define LOG_LEVEL DEBUG
 
@@ -71,29 +73,90 @@ Color interpolate_color(Color color1, Color color2, float t) {
 }
 
 
-void draw_orbital_lines(void* orbital_positions) {
+void draw_orbital_lines(darray orbital_lines, ClassicalOrbitalElements oe, PhysicalState RV, Nodes n, PhysicsTimeClock clock, Camera3D camera, float time) {
     PointBundle* prev_pos = NULL;
     PointBundle* current_pos = NULL;
+    
+    float r_at_sphere_of_influence = calculate_sphere_of_influence_r(RV.mass_of_parent, oe.mass_of_parent, oe.mass_of_grandparent);
+    float r_at_soi_world_coords = r_at_sphere_of_influence * KM_TO_RENDER_UNITS;
 
     // Now iterate over our darray and draw lines
-    for (int i = 0; i < darray_length(orbital_positions); i++) {
+    for (int i = 0; i < darray_length(orbital_lines); i++) {
         if (i==0) {
-            prev_pos = darray_get(orbital_positions, i);
+            prev_pos = darray_get(orbital_lines, i);
             continue;
         }
 
-        current_pos = darray_get(orbital_positions, i);
+        current_pos = darray_get(orbital_lines, i);
 
-        // Draw the dang line
-        /* DrawPoint3D(TF(vector_from_physical_to_world(*current_pos)),WHITE); */
+        if (current_pos == NULL) {
+            break;
+        }
 
-        Color col = BLUE;
-
-        DrawLine3D(TF(vector_from_physical_to_world(current_pos->point)), TF(vector_from_physical_to_world(prev_pos->point)), col);
+        DrawLine3D(TF(vector_from_physical_to_world(current_pos->point)), TF(vector_from_physical_to_world(prev_pos->point)), BLUE);
 
         prev_pos = current_pos;
     }
+    
+    Color myyellow = (Color){ 253, 249, 0, 100};
+
+    if (oe.eccentricity < 1.0) {
+        DrawLine3D(TF(vector_from_physical_to_world(n.asc)), TF(vector_from_physical_to_world(n.desc)), myyellow);
+    }
 }
+
+void draw_orbital_features(ClassicalOrbitalElements oe, PhysicalState RV, Nodes n, PhysicsTimeClock clock, Camera3D camera, float time) {
+    float max_distance = 5000.0;
+    float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-RV.r.x,camera.position.y-RV.r.y,camera.position.z-RV.r.z});
+    float distance_scale_factor = max_distance/camera_to_moon_distance;
+    float time_scale_factor = sin(time*1.5)/4.0 + 1;
+
+    float scale_factor = distance_scale_factor * time_scale_factor;
+    double velocity = DVector3Length(RV.v);
+    char velocity_str[20];  // Buffer for the formatted string
+    // Format the float as a string
+    snprintf(velocity_str, sizeof(velocity_str), "V=%.2f KM/s", velocity);
+
+    DVector3 moon_pos_world = vector_from_physical_to_world(RV.r);
+    // sqrt((x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2)
+    float dist = DVector3Distance(moon_pos_world, TD(camera.position));
+
+    DVector3 periapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(oe, 0.0, 0.0, 0.0));
+    DVector3 apoapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(oe, 0.0, 0.0, oe.period/2.0));
+    DVector3 asc_node_point = vector_from_physical_to_world(n.asc);
+    DVector3 desc_node_point = vector_from_physical_to_world(n.desc);
+
+    Vector2 periapsis_point_camera = GetWorldToScreen(TF(periapsis_point), camera);
+    Vector2 apoapsis_point_camera = GetWorldToScreen(TF(apoapsis_point), camera);
+    Vector2 asc_point_camera = GetWorldToScreen(TF(asc_node_point), camera);
+    Vector2 desc_point_camera = GetWorldToScreen(TF(desc_node_point), camera);
+
+    Vector2 moon = GetWorldToScreen(TF(moon_pos_world), camera);
+
+
+    if (!is_object_behind_camera(camera.position, camera.target, TF(moon_pos_world))) {
+        DrawRing(moon, 14*(scale_factor), 15*(scale_factor), 0.0, 360.0,20, GRAY);
+        DrawText("MOON",(int)moon.x - MeasureText("MOON",10)/2,(int)moon.y - MeasureText("MOON", 10),10,GREEN);
+        DrawText(velocity_str,(int)moon.x - MeasureText(velocity_str,10)/2,(int)moon.y - MeasureText(velocity_str,10),10,GREEN);
+    }
+
+    if (!is_object_behind_camera(camera.position, camera.target, TF(periapsis_point))) {
+        DrawText("Pa",(int)periapsis_point_camera.x - MeasureText("Pa",10)/2,(int)periapsis_point_camera.y - MeasureText("Pa", 10),10,SKYBLUE);
+    }
+
+    if (!is_object_behind_camera(camera.position, camera.target, TF(apoapsis_point))) {
+        DrawText("Apo",(int)apoapsis_point_camera.x - MeasureText("Apo",10)/2,(int)apoapsis_point_camera.y - MeasureText("Apo", 10),10,DARKBLUE);
+    }
+
+    if (!is_object_behind_camera(camera.position, camera.target, TF(asc_node_point))) {
+        DrawText("Asc",(int)asc_point_camera.x - MeasureText("Asc",10)/2,(int)asc_point_camera.y,10,YELLOW);
+    }
+
+    if (!is_object_behind_camera(camera.position, camera.target, TF(desc_node_point))) {
+        DrawText("Desc",(int)desc_point_camera.x - MeasureText("Desc",10)/2,(int)desc_point_camera.y,10,ORANGE);
+    }
+}
+
 
 void draw_element(char* format_text, double value, int x, int y, Color color) {
     char buffer[50];  // Buffer for the formatted string
@@ -103,7 +166,7 @@ void draw_element(char* format_text, double value, int x, int y, Color color) {
     DrawText(buffer,x,y,2,color);
 }
 
-void draw_orbital_parameters(ClassicalOrbitalElements oe, int num_lines) {
+void draw_textual_orbital_elements(ClassicalOrbitalElements oe, int num_lines) {
     int left_padding = 15;
     int padding_between_rows = 13;
     Color text_color = RED;
@@ -144,6 +207,7 @@ int main(void) {
         .v = moon_velocity,
         .mass_of_parent = EARTH_MASS_KG,
         .mass_of_grandparent = SUN_MASS_KG,
+        .mass = MOON_MASS_KG,
     };
 
     float M_naught = 2.35585;
@@ -174,14 +238,12 @@ int main(void) {
 
     Matrix matProj = MatrixPerspective(camera.fovy*DEG2RAD, ((double)GetScreenWidth()/(double)GetScreenHeight()), 0.1,10000000.0);
 
-    DisableCursor();                    // Limit cursor to relative movement inside the window
+    /* DisableCursor();                    // Limit cursor to relative movement inside the window */
 
     SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
     float delta;
     print_physical_state(RV);
-    float r_at_sphere_of_influence = calculate_sphere_of_influence_r(EARTH_SEMIMAJOR_AXIS_KM, eles.mass_of_parent, eles.mass_of_grandparent);
-    float r_at_soi_world_coords = r_at_sphere_of_influence * KM_TO_RENDER_UNITS;
 
     darray orbital_lines;
 
@@ -197,9 +259,6 @@ int main(void) {
         delta = GetFrameTime();
 
         UpdatePhysicsClock(&clock, delta);
-
-        orbital_lines = compute_orbital_lines(RV, clock.clock_seconds, r_at_sphere_of_influence*3);
-        int len_lines = darray_length(orbital_lines);
 
         RV = rv_from_r0v0(RV,clock.delta_seconds); 
         ClassicalOrbitalElements neweles = rv_to_classical_elements(RV);
@@ -217,11 +276,53 @@ int main(void) {
         moon_velocity = RV.v;
 
         if(IsKeyDown(KEY_RIGHT) || IsKeyPressed(KEY_RIGHT)) {
-            RV.v = DVector3Scale(RV.v,1.001);
+            DVector3 forward = DVector3Scale(DVector3Normalize(RV.v),10000000000000000000000.0);
+
+            Debug("Forward vector = (%.4f, %.4f, %.4f)\n",forward.x,forward.y,forward.z);
+
+            Debug("Applying force\n");
+            RV = apply_force_to(RV, forward, delta);
+            Debug("Printing physical state.\n");
+
+            print_physical_state(RV);
         }
 
+
         if(IsKeyDown(KEY_LEFT) || IsKeyPressed(KEY_LEFT)) {
-            RV.v = DVector3Scale(RV.v,0.999);
+            DVector3 backwards = DVector3Scale(DVector3Normalize(RV.v),-10000000000000000000000.0);
+
+            Debug("Forward vector = (%.4f, %.4f, %.4f)\n",backwards.x,backwards.y,backwards.z);
+
+            Debug("Applying force\n");
+            RV = apply_force_to(RV, backwards, delta);
+            Debug("Printing physical state.\n");
+
+            print_physical_state(RV);
+        }
+
+        if(IsKeyDown(KEY_UP) || IsKeyPressed(KEY_UP)) {
+            DVector3 up = DVector3Scale(DVector3Normalize(DVector3CrossProduct(RV.r, RV.v)),10000000000000000000000.0);
+
+            Debug("Up vector = (%.4f, %.4f, %.4f)\n",up.x,up.y,up.z);
+
+            Debug("Applying force\n");
+            RV = apply_force_to(RV, up, delta);
+            Debug("Printing physical state.\n");
+
+            print_physical_state(RV);
+        }
+
+
+        if(IsKeyDown(KEY_DOWN) || IsKeyPressed(KEY_DOWN)) {
+            DVector3 down = DVector3Scale(DVector3Normalize(DVector3CrossProduct(RV.r, RV.v)),-10000000000000000000000.0);
+
+            Debug("Down vector = (%.4f, %.4f, %.4f)\n",down.x,down.y,down.z);
+
+            Debug("Applying force\n");
+            RV = apply_force_to(RV, down, delta);
+            Debug("Printing physical state.\n");
+
+            print_physical_state(RV);
         }
 
         if(IsKeyDown(KEY_D) || IsKeyPressed(KEY_D)) {
@@ -232,18 +333,14 @@ int main(void) {
             clock.scale /= 2;
         }
 
-        /* moon_velocity = Vector3Scale(RV.v,0.9); */
+        eles = rv_to_classical_elements(RV);
 
-        DVector3 moon_pos_world = vector_from_physical_to_world(moon_position);
-        // sqrt((x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2)
-        float dist = DVector3Distance(moon_pos_world, TD(camera.position));
 
-        DVector3 t0_line = vector_from_physical_to_world(solve_kepler_ellipse_inertial(eles, 0.0, 0.0, 0.0));
-        DVector3 t0_norm = DVector3Normalize(t0_line);
-        DVector3 t0_farther_out = DVector3Add(t0_line, DVector3Scale(t0_norm,200));
-
-        Vector2 t0_farther_out_world = GetWorldToScreen(TF(t0_farther_out), camera);
-        Vector2 moon = GetWorldToScreen(TF(moon_pos_world), camera);
+        float r_at_sphere_of_influence = calculate_sphere_of_influence_r(EARTH_SEMIMAJOR_AXIS_KM, eles.mass_of_parent, eles.mass_of_grandparent);
+        float r_at_soi_world_coords = r_at_sphere_of_influence * KM_TO_RENDER_UNITS;
+        
+        darray orbital_lines = compute_orbital_lines(RV, clock.clock_seconds, r_at_sphere_of_influence*3);
+        int len_lines = darray_length(orbital_lines);
 
         // Draw
         //----------------------------------------------------------------------------------
@@ -253,45 +350,25 @@ int main(void) {
 
             SphericalCameraSystem(&r, &theta, &phi, &camera);
 
+            Nodes n = compute_nodes(eles);
+            draw_textual_orbital_elements(eles,darray_length(orbital_lines));
+            draw_orbital_features(eles, RV, n, clock, camera, time);
+
             BeginMode3D(camera);
                 rlSetMatrixProjection(matProj);
 
-                draw_orbital_lines(orbital_lines);
-
+                draw_orbital_lines(orbital_lines,eles,RV,n,clock,camera,clock.clock_seconds);
                 darray_free(orbital_lines);
+
                 Vector3 sphere_pos = {0.0,0.0,0.0};
 
                 DrawSphereWires(sphere_pos,EARTH_RADIUS_KM * KM_TO_RENDER_UNITS,10,10,SKYBLUE);
                 Color grid_color = { .r = 0, .g = 240, .b = 0, .a = 150};
-                DrawGridOfColor(250,500000,grid_color); // Draw ground
-
-                DrawSphereWires(TF(moon_pos_world),(MOON_RADIUS_KM * KM_TO_RENDER_UNITS),10,10,GRAY);
+                DrawSphereWires(TF(vector_from_physical_to_world(RV.r)),MOON_RADIUS_KM * KM_TO_RENDER_UNITS,10,10,LIGHTGRAY);
+                DrawGridOfColor(250,500000,grid_color); // Draw equatorial plane 
                 DrawSphereWires(sphere_pos,(r_at_soi_world_coords),10,10,(Color){.r=255, .b=182, .g=193,.a=50});
+
             EndMode3D();
-
-            draw_orbital_parameters(eles,len_lines);
-
-            float max_distance = 5000.0;
-            float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-moon_pos_world.x,camera.position.y-moon_pos_world.y,camera.position.z-moon_pos_world.z});
-            float distance_scale_factor = max_distance/camera_to_moon_distance;
-            float time_scale_factor = sin(time*1.5)/4.0 + 1;
-
-            float scale_factor = distance_scale_factor * time_scale_factor;
-            double velocity = DVector3Length(RV.v);
-            char velocity_str[20];  // Buffer for the formatted string
-            // Format the float as a string
-            snprintf(velocity_str, sizeof(velocity_str), "V=%.2f KM/s", velocity);
-
-
-            if (!is_object_behind_camera(camera.position, camera.target, TF(moon_pos_world))) {
-                DrawRing(moon, 14*(scale_factor), 15*(scale_factor), 0.0, 360.0,20, GRAY);
-                DrawText("MOON",(int)moon.x - MeasureText("MOON",10)/2,(int)moon.y - MeasureText("MOON", 10),10,GREEN);
-                DrawText(velocity_str,(int)moon.x - MeasureText(velocity_str,10)/2,(int)moon.y - MeasureText(velocity_str,10),10,GREEN);
-            }
-
-            if (!is_object_behind_camera(camera.position, camera.target, TF(t0_farther_out))) {
-                DrawText("Pa",(int)t0_farther_out_world.x - MeasureText("T=0",10)/2,(int)t0_farther_out_world.y - MeasureText("T=0", 10),10,GREEN);
-            }
 
 
         EndDrawing();

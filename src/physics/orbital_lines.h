@@ -1,7 +1,7 @@
 #pragma once
 
-#ifndef PROPAGATION_H
-#define PROPAGATION_H
+#ifndef ORBITALLINES_H
+#define ORBITALLINES_H 
 
 #include "kepler.h"
 #include "../utils/darray.h"

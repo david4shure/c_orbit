@@ -577,6 +577,7 @@ PhysicalState rv_from_r0v0(PhysicalState rv, double t) {
         .v = V,
         .mass_of_parent = rv.mass_of_parent,
         .mass_of_grandparent = rv.mass_of_grandparent,
+        .mass = rv.mass,
     };
 }
 
@@ -647,4 +648,52 @@ DVector3 solve_kepler_ellipse_inertial(ClassicalOrbitalElements elems, double M_
 
 double periapsis_distance(ClassicalOrbitalElements oe) {
     return oe.semimajor_axis * (1.0 - oe.eccentricity);
+}
+
+
+Nodes compute_nodes(ClassicalOrbitalElements oe) {
+    // True anomalies at nodes
+    double nu_ascending = 0.0 - oe.arg_of_periapsis;       // Ascending node
+    double nu_descending = M_PI - oe.arg_of_periapsis;    // Descending node
+
+    // Distance at ascending and descending nodes
+    double r_ascending = oe.semimajor_axis * (1.0 - oe.eccentricity * oe.eccentricity) /
+                         (1.0 + oe.eccentricity * cos(nu_ascending));
+    double r_descending = oe.semimajor_axis * (1.0 - oe.eccentricity * oe.eccentricity) /
+                          (1.0 + oe.eccentricity * cos(nu_descending));
+
+    // Perifocal coordinates at nodes
+    DVector3 perifocal_ascending = {
+        .x = r_ascending * cos(nu_ascending),
+        .y = r_ascending * sin(nu_ascending),
+        .z = 0.0
+    };
+
+    DVector3 perifocal_descending = {
+        .x = r_descending * cos(nu_descending),
+        .y = r_descending * sin(nu_descending),
+        .z = 0.0
+    };
+
+    // Convert perifocal to inertial coordinates
+    DVector3 ascending_node = perifocal_coords_to_inertial_coords(
+        perifocal_ascending,
+        oe.long_of_asc_node,
+        oe.arg_of_periapsis,
+        oe.inclination
+    );
+
+    DVector3 descending_node = perifocal_coords_to_inertial_coords(
+        perifocal_descending,
+        oe.long_of_asc_node,
+        oe.arg_of_periapsis,
+        oe.inclination
+    );
+
+    Nodes n = {
+        ascending_node,
+        descending_node,
+    };
+
+    return n;
 }

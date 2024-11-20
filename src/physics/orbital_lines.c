@@ -116,6 +116,10 @@ darray compute_orbital_lines_ellipse(ClassicalOrbitalElements oe, PhysicalState 
             break;
         }
 
+        if(r==0.0) {
+            break;
+        }
+
         // Shallow range of min/max values
         double max_circular = oe.period/1000;
         double min_circular = oe.period/1000;
@@ -123,9 +127,6 @@ darray compute_orbital_lines_ellipse(ClassicalOrbitalElements oe, PhysicalState 
         // Extreme range of min/max values
         double min_elliptical = oe.period/10000000;
         double max_elliptical = oe.period/500;
-
-        /* Debug("max_circular=%.6f, min_circular=%.6f\n",max_circular,min_circular); */
-        /* Debug("min_elliptical=%.6f, max_elliptical=%.6f\n",min_elliptical,max_elliptical); */
 
         // Linear interpolation between them based on eccentricity :)
         double min = min_elliptical + (1-oe.eccentricity) * (min_circular - min_elliptical);

@@ -43,6 +43,7 @@ typedef struct ClassicalOrbitalElements {
 typedef struct PhysicalState {
     DVector3 r; // Position in inertial frame 
     DVector3 v; // Velocity in inertial frame
+    double mass; // Mass of the satellite
     double mass_of_parent; // Mass of the central body KG e.g. Earth
     double mass_of_grandparent; // Mass of the central body's central body KG e.g. Sun
 } PhysicalState;
@@ -64,6 +65,11 @@ typedef struct TimeOfPassage {
     double duration_until_point; // seconds
     double current_time; // seconds
 } TimeOfPassage;
+
+typedef struct Nodes {
+    DVector3 asc;
+    DVector3 desc;
+} Nodes;
 
 // Mean anomaly as a function of M_naught (Mean anomaly at epoch, t time, t_naught time of M_naught, T orbital period)
 double mean_anom(double M_naught, double t, double t_naught, double T); 
@@ -134,7 +140,6 @@ DVector3 solve_kepler_ellipse_inertial(ClassicalOrbitalElements elems, double M_
 // DVector2 because only x and y are relevant for perifocal frame
 DVector3 solve_kepler_ellipse_perifocal(ClassicalOrbitalElements elems, double M_naught, double t_naught, double t); 
 
-
 // Converts a Vec3 in World render coords to physical coords
 DVector2 vector2_from_world_to_physical(DVector2 vec);
 
@@ -161,5 +166,8 @@ DVector3 inertial_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_no
 
 // Computes periapsis distance for an orbit
 double periapsis_distance(ClassicalOrbitalElements oe);
+
+// Function to compute ascending and descending node positions
+Nodes compute_nodes(ClassicalOrbitalElements oe);
 
 #endif

@@ -9,6 +9,8 @@ add_library(physics
     orbital_lines.h
     time.c
     time.h
+    propagation.h
+    propagation.c
 )
 
 # Specify include directories for the physics library
