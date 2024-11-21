@@ -169,42 +169,6 @@ void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, PhysicsTime
     }
 }
 
-
-void draw_body_label(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera) {
-    float max_distance = 5000.0;
-    float camera_to_body_distance = Vector3Length((Vector3){camera.position.x-node->physical_state.r.x,camera.position.y-node->physical_state.r.y,camera.position.z-node->physical_state.r.z});
-    float distance_scale_factor = max_distance/camera_to_body_distance;
-    float time_scale_factor = sin(clock.clock_seconds*1.5)/4.0 + 1;
-
-    float scale_factor = distance_scale_factor * time_scale_factor;
-    double velocity = DVector3Length(node->physical_state.v);
-    char velocity_str[20];  // Buffer for the formatted string
-    // Format the float as a string
-    snprintf(velocity_str, sizeof(velocity_str), "V=%.2f KM/s", velocity);
-
-    DVector3 body_pos_world = vector_from_physical_to_world(node->physical_state.r);
-    // sqrt((x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2)
-    float dist = DVector3Distance(body_pos_world, TD(camera.position));
-
-    DVector3 periapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(node->orbital_elements, 0.0, 0.0, 0.0));
-    DVector3 apoapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(node->orbital_elements, 0.0, 0.0, node->orbital_elements.period/2.0));
-    DVector3 asc_node_point = vector_from_physical_to_world(node->asc_desc.asc);
-    DVector3 desc_node_point = vector_from_physical_to_world(node->asc_desc.desc);
-
-    Vector2 periapsis_point_camera = GetWorldToScreen(TF(periapsis_point), camera);
-    Vector2 apoapsis_point_camera = GetWorldToScreen(TF(apoapsis_point), camera);
-    Vector2 asc_point_camera = GetWorldToScreen(TF(asc_node_point), camera);
-    Vector2 desc_point_camera = GetWorldToScreen(TF(desc_node_point), camera);
-
-    Vector2 screen_body_pos = GetWorldToScreen(TF(body_pos_world), camera);
-
-    if (!is_object_behind_camera(camera.position, camera.target, TF(body_pos_world))) {
-        DrawText(node->body_name,(int)screen_body_pos.x - MeasureText("MOON",10)/2,(int)screen_body_pos.y - MeasureText("MOON", 10),10,GREEN);
-        DrawText(velocity_str,(int)screen_body_pos.x - MeasureText(velocity_str,10)/2,(int)screen_body_pos.y - MeasureText(velocity_str,10),10,GREEN);
-    }
-}
-
-
 void draw_orbital_features(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera) {
     float max_distance = 5000.0;
     float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-node->physical_state.r.x,camera.position.y-node->physical_state.r.y,camera.position.z-node->physical_state.r.z});
@@ -240,7 +204,7 @@ void draw_orbital_features(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera
     Vector2 positive_z_direction = GetWorldToScreen(TF(positive_z),camera);
 
     if (!is_object_behind_camera(camera.position, camera.target, TF(body_pos_world))) {
-        DrawText(node->body_name,(int)body.x - MeasureText(node->body_name,10)/2,(int)body.y - MeasureText("MOON", 10),10,GREEN);
+        DrawText(node->body_name,(int)body.x - MeasureText(node->body_name,10)/2,(int)body.y - MeasureText(node->body_name, 10),10,GREEN);
         DrawText(velocity_str,(int)body.x - MeasureText(velocity_str,10)/2,(int)body.y - MeasureText(velocity_str,10),10,GREEN);
     }
     if (!is_object_behind_camera(camera.position, camera.target, TF(periapsis_point))) {
@@ -341,7 +305,6 @@ void draw_orbital_node(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D c
 
     if (!is_root_node) {
         // Drawing steps for non root nodes
-        draw_body_label(node, clock, camera3d);
         if (should_draw_orbital_features) {
             draw_orbital_features(node, clock, camera3d);
         }
@@ -352,8 +315,8 @@ void draw_orbital_node(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D c
     if (should_draw_orbital_features) {
         draw_orbital_lines(node->orbital_lines, node, clock, camera3d);
     }
-    draw_body(node,camera3d);
     draw_sphere_of_influence(node,camera3d);
+    draw_body(node,camera3d);
     EndMode3D();
 
     // Iterate over children & recurse!
@@ -463,10 +426,32 @@ int main(void) {
         time = GetTime();
         delta = GetFrameTime();
 
+        if(IsKeyDown(KEY_D) || IsKeyPressed(KEY_D)) {
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                clock.scale *= 1.1;
+            } else {
+                clock.scale *= 2;
+            }
+        }
+
+        if(IsKeyDown(KEY_A) || IsKeyPressed(KEY_A)) {
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                clock.scale /= 1.5;
+            } else {
+                clock.scale /= 2;
+            }
+        }
+
         UpdatePhysicsClock(&clock, delta);
 
         Info("Updating orbital node...\n");
         update_orbital_node(root, clock);
+
+
+        if(IsKeyPressed(KEY_V)) {
+            should_draw_orbital_features = !should_draw_orbital_features;
+        }
+
 
         // Draw
         //----------------------------------------------------------------------------------
