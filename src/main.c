@@ -349,8 +349,9 @@ void update_orbital_node(OrbitalTreeNode* node, PhysicsTimeClock clock) {
         node->asc_desc = compute_nodes(node->orbital_elements);
 
         // Free previous orbital lines
-        if(node->orbital_lines != NULL) {
-            darray_set_length(node->orbital_lines, 0);
+        if(node->orbital_lines != NULL && node->parent == NULL) {
+            darray_free(node->orbital_lines);
+            node->orbital_lines = NULL;
         }
 
         Debug("Computing orbital lines\n");
