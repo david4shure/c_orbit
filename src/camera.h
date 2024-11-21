@@ -4,4 +4,4 @@
 #include "raylib.h"
 #endif
 
-void SphericalCameraSystem(float* r, float* theta, float* phi, Camera3D* camera);
+void spherical_camera_system(float* r, float* theta, float* phi, Camera3D* camera, bool is_locked);

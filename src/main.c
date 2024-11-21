@@ -242,27 +242,12 @@ void draw_orbital_features(ClassicalOrbitalElements oe, PhysicalState RV, Nodes 
         DrawText("MOON",(int)moon.x - MeasureText("MOON",10)/2,(int)moon.y - MeasureText("MOON", 10),10,GREEN);
         DrawText(velocity_str,(int)moon.x - MeasureText(velocity_str,10)/2,(int)moon.y - MeasureText(velocity_str,10),10,GREEN);
     }
-
     if (!is_object_behind_camera(camera.position, camera.target, TF(periapsis_point))) {
         DrawText("Pa",(int)periapsis_point_camera.x - MeasureText("Pa",10)/2,(int)periapsis_point_camera.y - MeasureText("Pa", 10),10,SKYBLUE);
     }
-
     if (!is_object_behind_camera(camera.position, camera.target, TF(apoapsis_point))) {
         DrawText("Apo",(int)apoapsis_point_camera.x - MeasureText("Apo",10)/2,(int)apoapsis_point_camera.y - MeasureText("Apo", 10),10,DARKBLUE);
     }
-
-    if (oe.eccentricity >= 1.0) {
-        return;
-    }
-
-    if (!is_object_behind_camera(camera.position, camera.target, TF(asc_node_point))) {
-        DrawText("Asc",(int)asc_point_camera.x - MeasureText("Asc",10)/2,(int)asc_point_camera.y,10,YELLOW);
-    }
-
-    if (!is_object_behind_camera(camera.position, camera.target, TF(desc_node_point))) {
-        DrawText("Desc",(int)desc_point_camera.x - MeasureText("Desc",10)/2,(int)desc_point_camera.y,10,ORANGE);
-    }
-
     if (!is_object_behind_camera(camera.position, camera.target, TF(positive_x))) {
         DrawText("+x",(int)positive_x_direction.x,(int)positive_x_direction.y,13,LIGHTGRAY);
     }
@@ -273,7 +258,16 @@ void draw_orbital_features(ClassicalOrbitalElements oe, PhysicalState RV, Nodes 
         DrawText("+z",(int)positive_z_direction.x,(int)positive_z_direction.y,13,LIGHTGRAY);
     }
 
+    if (oe.eccentricity >= 1.0) {
+        return;
+    }
 
+    if (!is_object_behind_camera(camera.position, camera.target, TF(asc_node_point))) {
+        DrawText("Asc",(int)asc_point_camera.x - MeasureText("Asc",10)/2,(int)asc_point_camera.y,10,YELLOW);
+    }
+    if (!is_object_behind_camera(camera.position, camera.target, TF(desc_node_point))) {
+        DrawText("Desc",(int)desc_point_camera.x - MeasureText("Desc",10)/2,(int)desc_point_camera.y,10,ORANGE);
+    }
 }
 
 
@@ -362,9 +356,12 @@ int main(void) {
     float theta = 0.0;
     float phi = PI;
 
+    // Indicates if the camera
+    bool is_click_to_drag_on = true;
+
     Matrix matProj = MatrixPerspective(camera.fovy*DEG2RAD, ((double)GetScreenWidth()/(double)GetScreenHeight()), 0.1,10000000.0);
 
-    /* DisableCursor();                    // Limit cursor to relative movement inside the window */
+    DisableCursor();                    // Limit cursor to relative movement inside the window
 
     SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
@@ -401,8 +398,24 @@ int main(void) {
         moon_position = RV.r;
         moon_velocity = RV.v;
 
+        Info("is_click_to_drag_on = %d\n",is_click_to_drag_on);
+        if(IsKeyPressed(KEY_L)) {
+            if (is_click_to_drag_on) {
+                EnableCursor();
+            } else {
+                DisableCursor();
+            }
+            is_click_to_drag_on = !is_click_to_drag_on;
+        }
+
         if(IsKeyDown(KEY_RIGHT) || IsKeyPressed(KEY_RIGHT)) {
-            DVector3 forward = DVector3Scale(DVector3Normalize(RV.v),10000000000000000000000.0);
+            double scale = 1.0;
+
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                scale *= 0.1;
+            }
+
+            DVector3 forward = DVector3Scale(DVector3Normalize(RV.v),10000000000000000000000.0*scale);
 
             Debug("Forward vector = (%.4f, %.4f, %.4f)\n",forward.x,forward.y,forward.z);
 
@@ -415,7 +428,12 @@ int main(void) {
 
 
         if(IsKeyDown(KEY_LEFT) || IsKeyPressed(KEY_LEFT)) {
-            DVector3 backwards = DVector3Scale(DVector3Normalize(RV.v),-10000000000000000000000.0);
+            double scale = 1.0;
+
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                scale *= 0.1;
+            }
+            DVector3 backwards = DVector3Scale(DVector3Normalize(RV.v),-10000000000000000000000.0*scale);
 
             Debug("Forward vector = (%.4f, %.4f, %.4f)\n",backwards.x,backwards.y,backwards.z);
 
@@ -427,7 +445,12 @@ int main(void) {
         }
 
         if(IsKeyDown(KEY_UP) || IsKeyPressed(KEY_UP)) {
-            DVector3 up = DVector3Scale(DVector3Normalize(DVector3CrossProduct(RV.r, RV.v)),10000000000000000000000.0);
+            double scale = 1.0;
+
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                scale *= 0.1;
+            }
+            DVector3 up = DVector3Scale(DVector3Normalize(DVector3CrossProduct(RV.r, RV.v)),10000000000000000000000.0*scale);
 
             Debug("Up vector = (%.4f, %.4f, %.4f)\n",up.x,up.y,up.z);
 
@@ -440,7 +463,12 @@ int main(void) {
 
 
         if(IsKeyDown(KEY_DOWN) || IsKeyPressed(KEY_DOWN)) {
-            DVector3 down = DVector3Scale(DVector3Normalize(DVector3CrossProduct(RV.r, RV.v)),-10000000000000000000000.0);
+            double scale = 1.0;
+
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                scale *= 0.1;
+            }
+            DVector3 down = DVector3Scale(DVector3Normalize(DVector3CrossProduct(RV.r, RV.v)),-10000000000000000000000.0*scale);
 
             Debug("Down vector = (%.4f, %.4f, %.4f)\n",down.x,down.y,down.z);
 
@@ -452,11 +480,19 @@ int main(void) {
         }
 
         if(IsKeyDown(KEY_D) || IsKeyPressed(KEY_D)) {
-            clock.scale *= 2;
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                clock.scale *= 1.1;
+            } else {
+                clock.scale *= 2;
+            }
         }
 
         if(IsKeyDown(KEY_A) || IsKeyPressed(KEY_A)) {
-            clock.scale /= 2;
+            if (IsKeyDown(KEY_LEFT_SHIFT)) {
+                clock.scale /= 1.5;
+            } else {
+                clock.scale /= 2;
+            }
         }
 
         if(IsKeyPressed(KEY_V)) {
@@ -478,7 +514,7 @@ int main(void) {
 
             ClearBackground(BLACK);
 
-            SphericalCameraSystem(&r, &theta, &phi, &camera);
+            spherical_camera_system(&r, &theta, &phi, &camera,is_click_to_drag_on);
 
             Nodes n = compute_nodes(eles);
 
