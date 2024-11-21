@@ -10,12 +10,10 @@ int main() {
     PhysicalState initial_state = {
         .r = position,
         .v = velocity,
-        .mass_of_parent = EARTH_MASS_KG,
-        .mass_of_grandparent = SUN_MASS_KG
     };
 
-    ClassicalOrbitalElements oe = rv_to_classical_elements(initial_state);
-    PhysicalState final_state = classical_elements_to_rv(oe);
+    ClassicalOrbitalElements oe = rv_to_classical_elements(initial_state,EARTH_MASS_KG*G);
+    PhysicalState final_state = classical_elements_to_rv(oe,EARTH_MASS_KG*G);
 
     ASSERT_EQ_DVECTOR3(initial_state.r, final_state.r, 1e-3);
     ASSERT_EQ_DVECTOR3(initial_state.v, final_state.v, 1e-3);

@@ -3,20 +3,23 @@
 #ifndef PHYSICAL_CONSTANTS
 #define PHYSICAL_CONSTANTS
 
+// Geometric constants / conversion constants
 static const double D_PI = 3.1415926535897932384626433832795028841917f;
-
 static const double D_RAD2DEG = 180.0f/D_PI;
-
 static const double D_DEG2RAD = D_PI/180.0f;
 
 // Universal gravitational constant
 static const double  G = 6.67430e-20; // km3kg−1s−2
 
-// Earth mass kg
+// Earth related constants 
 static const double EARTH_MASS_KG = 5.972161874653522e24;
+static const double EARTH_RADIUS_KM = 6378.137;
+static const double EARTH_SEMIMAJOR_AXIS_KM = 149597870.7;
 
-// Moon mass kg
+// Moon related constants
 static const double MOON_MASS_KG = 7.348e+22;
+static const double MOON_SEMIMAJOR_AXIS_KM = 384400.0;
+static const double MOON_RADIUS_KM = 1737.4;
 
 // Sun mass kg
 static const double SUN_MASS_KG = 1.989e+30;
@@ -33,11 +36,7 @@ static const double RENDER_UNITS_TO_KM_2D = 1.0;
 // 0.05 KM render units to a KM
 static const double KM_TO_RENDER_UNITS_2D = 1/RENDER_UNITS_TO_KM_2D;
 
-// Earth radius km
-static const double EARTH_RADIUS_KM = 6378.137;
-static const double MOON_RADIUS_KM = 1737.4;
-static const double EARTH_SEMIMAJOR_AXIS_KM = 149597870.7;
-
+// helpful constants for time calculations
 static const int SECONDS_IN_MINUTE = 60;
 static const int MINUTES_IN_HOUR = 60;
 static const int HOURS_IN_DAY = 24;

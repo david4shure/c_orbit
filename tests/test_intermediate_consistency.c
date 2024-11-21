@@ -11,15 +11,13 @@ int main() {
     PhysicalState initial_state = {
         .r = initial_position,
         .v = initial_velocity,
-        .mass_of_parent = EARTH_MASS_KG,
-        .mass_of_grandparent = SUN_MASS_KG
     };
 
-    ClassicalOrbitalElements oe = rv_to_classical_elements(initial_state);
+    ClassicalOrbitalElements oe = rv_to_classical_elements(initial_state,EARTH_MASS_KG*G);
 
-    print_orbital_elements(oe);
+    print_orbital_elements("earth",oe);
 
-    PhysicalState reconstructed_state = classical_elements_to_rv(oe);
+    PhysicalState reconstructed_state = classical_elements_to_rv(oe,EARTH_MASS_KG*G);
 
     print_physical_state(reconstructed_state);
     print_physical_state(initial_state);

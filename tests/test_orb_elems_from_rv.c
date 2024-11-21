@@ -10,13 +10,11 @@ int main() {
     PhysicalState RV = {
         .r = moon_position,
         .v = moon_velocity,
-        .mass_of_parent = EARTH_MASS_KG,
-        .mass_of_grandparent = SUN_MASS_KG,
     };
 
-    ClassicalOrbitalElements oe = rv_to_classical_elements(RV);
+    ClassicalOrbitalElements oe = rv_to_classical_elements(RV,EARTH_MASS_KG*G);
 
-    print_orbital_elements(oe);
+    print_orbital_elements("moon",oe);
 
     ASSERT_NEAR(0.007274, oe.eccentricity, 1e-6);
     ASSERT_NEAR(387216.80439, oe.semimajor_axis, 1e-6);

@@ -24,17 +24,17 @@ double delta_t_from_velocity(double velocityMagnitude, double scalingFactor) {
 // out how to do so based on its orbit type (ellipse,parabola,hyperbola etc)
 // NOTE: This function returns a dynamic array that is malloc'ed!!
 // It should be freed accordingly
-darray compute_orbital_lines(PhysicalState rv, float t, float max_render_distance) {
-    ClassicalOrbitalElements oe = rv_to_classical_elements(rv);
+darray compute_orbital_lines(PhysicalState rv, double grav_param, float t, float max_render_distance) {
+    ClassicalOrbitalElements oe = rv_to_classical_elements(rv,grav_param);
     Debug("e=%.5f\n",oe.eccentricity);
     if (oe.eccentricity < 1.0) { // Ellipse
-        return compute_orbital_lines_ellipse(oe,rv,t,max_render_distance);
+        return compute_orbital_lines_ellipse(oe,rv);
     } else { // Parabolas / Hyperbolas
-        return compute_orbital_lines_non_ellipse(oe,rv,t,max_render_distance);
+        return compute_orbital_lines_non_ellipse(oe,rv,grav_param,t,max_render_distance);
     }
 }
 
-darray compute_orbital_lines_non_ellipse(ClassicalOrbitalElements oe, PhysicalState rv, float t, float max_render_distance) {
+darray compute_orbital_lines_non_ellipse(ClassicalOrbitalElements oe, PhysicalState rv, double grav_param, float t, float max_render_distance) {
     // Go in the negative direction until we hit max_render_distance
     PhysicalState init_rv = rv;
     bool hit_max_dist = false;
@@ -48,7 +48,7 @@ darray compute_orbital_lines_non_ellipse(ClassicalOrbitalElements oe, PhysicalSt
     int num_points = 0;
     while (!hit_max_dist) {
         delta_t = delta_t_from_velocity(DVector3Length(rv.v), scalingFactor);
-        rv = rv_from_r0v0(rv, -delta_t);
+        rv = rv_from_r0v0(rv, grav_param, -delta_t);
         float distance = fabs(DVector3Length(rv.r));
         hit_max_dist = distance > max_render_distance;
         darr = darray_insert_at(darr,(void*)&rv.r,0);
@@ -69,7 +69,7 @@ darray compute_orbital_lines_non_ellipse(ClassicalOrbitalElements oe, PhysicalSt
     delta_t = delta_t_from_velocity(DVector3Length(init_rv.v), scalingFactor);
     while (!hit_max_dist) {
         delta_t = delta_t_from_velocity(DVector3Length(rv.v), scalingFactor);
-        rv = rv_from_r0v0(rv, delta_t);
+        rv = rv_from_r0v0(rv, grav_param, delta_t);
         float distance = fabs(DVector3Length(rv.r));
         hit_max_dist = distance > max_render_distance;
         darr = darray_push(darr, (void*)&rv.r);
@@ -86,7 +86,7 @@ darray compute_orbital_lines_non_ellipse(ClassicalOrbitalElements oe, PhysicalSt
     return darr;
 }
 
-darray compute_orbital_lines_ellipse(ClassicalOrbitalElements oe, PhysicalState rv, float t, float z_far) {
+darray compute_orbital_lines_ellipse(ClassicalOrbitalElements oe, PhysicalState rv) {
     Info("Starting propagate_orbit_ellipse: ecc=%.6f, true_anomaly=%.2f", 
          oe.eccentricity, oe.true_anomaly * 180.0 / M_PI);
     Info("R = (%.5f,%.5f,%.5f), V = (%.5f,%.5f,%.5f)\n",rv.r.x,rv.r.y,rv.r.z,rv.v.x,rv.v.y,rv.v.z);

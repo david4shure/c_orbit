@@ -11,13 +11,11 @@ int main() {
     PhysicalState initial_state = {
         .r = initial_position,
         .v = initial_velocity,
-        .mass_of_parent = EARTH_MASS_KG,
-        .mass_of_grandparent = SUN_MASS_KG
     };
 
-    ClassicalOrbitalElements oe = rv_to_classical_elements(initial_state);
+    ClassicalOrbitalElements oe = rv_to_classical_elements(initial_state,EARTH_MASS_KG*G);
 
-    print_orbital_elements(oe);
+    print_orbital_elements("earth",oe);
 
     printf("oe.ang_mom = %.5f\n",oe.ang_momentum);
     ASSERT_NEAR(0.171212,oe.eccentricity,1e-3);

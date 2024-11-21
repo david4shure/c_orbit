@@ -218,10 +218,22 @@ void darray_set(darray arr, void* item, int index) {
     memcpy(ptr,item,header->stride);
 }
 
+// Set item in darray at index
+void darray_set_length(darray arr, int length) {
+    // Parse out darrray_header from ptr
+    darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
+    
+    header->size = length; 
+}
+
 // Get length of darray
 int darray_length(darray arr) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     return header->size;
+}
+
+bool darray_empty(darray arr) {
+    return darray_length(arr) == 0;
 }

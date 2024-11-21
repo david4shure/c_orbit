@@ -5,24 +5,32 @@
 
 #include "../physics/kepler.h"
 #include "../utils/darray.h"
+#include "stdbool.h"
 
 typedef struct OrbitalTreeNode {
     // Physical Parameters & Information about body, IE mass, mu, physical radius, etc
-    PhysicalParameters* physical_params;
-    // Keplerian Orbital Elements
-    OrbitalElements* elements;
+    PhysicalParameters physical_params;
+    // Classic Keplerian Orbital Elements
+    ClassicalOrbitalElements orbital_elements;
     // Position / Velocity Vectors
-    PhysicalState* state;
+    PhysicalState physical_state;
+    // Positions of ascending and descending nodes
+    OrbitalNodes asc_desc;
+    bool is_state_vector_initialized;
+    // Do we render it's initial position from its state vector? 
+    // if not, we default to the ClassicalOrbitalElements
+    bool use_state_vector;
     // Name (i.e. "Moon")
     char* body_name;
     // Parent node
     struct OrbitalTreeNode* parent;
-    // Children (darray<OrbitalTreeNode> type)
+    // Children (darray<OrbitalTreeNode*> type) MALLOC
     darray children;
+    // Orbital lines (darray<PointBundle> type) MALLOC
+    darray orbital_lines;
 } OrbitalTreeNode;
 
-OrbitalTreeNode* load_orbital_tree_from_file(char* filename) {
-    
-}
+// Mallocs things FYI
+OrbitalTreeNode* load_earth_moon_system();
 
 #endif

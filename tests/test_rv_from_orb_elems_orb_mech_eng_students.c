@@ -29,11 +29,10 @@ int main() {
         .inclination = incl_rad,
         .arg_of_periapsis = w_rad,
         .true_anomaly = TA_rad,
-        .grav_param = mu,
     };
 
     // Compute state vector (position and velocity)
-    PhysicalState sv = classical_elements_to_rv(coe);
+    PhysicalState sv = classical_elements_to_rv(coe,EARTH_MASS_KG*G);
     print_physical_state(sv);
 
     // Log inputs and outputs

@@ -4,6 +4,7 @@
 #define DARRAY_GROWTH_FACTOR 2
 
 #include "stdlib.h"
+#include "stdbool.h"
 
 // Its a darray under the hood, but helpful to see it as darray type
 typedef void* darray;
@@ -49,6 +50,10 @@ darray darray_get(darray arr, int index);
 
 // Set item in array at index
 void darray_set(darray arr, void* item, int index);
+
+bool darray_empty(darray arr);
+
+void darray_set_length(darray arr, int length);
 
 // Length of darray
 int darray_length(darray arr);
