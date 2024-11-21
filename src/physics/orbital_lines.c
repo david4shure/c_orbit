@@ -8,7 +8,7 @@
 #include "corbit_math.h"
 #include "kepler.h"
 
-const int MAX_POINTS = 100000;
+const int MAX_POINTS = 20000;
 
 double clampd(double value, double min, double max) {
     if (value < min) return min;
@@ -38,7 +38,7 @@ darray compute_orbital_lines_non_ellipse(ClassicalOrbitalElements oe, PhysicalSt
     // Go in the negative direction until we hit max_render_distance
     PhysicalState init_rv = rv;
     bool hit_max_dist = false;
-    double scalingFactor = 500.0;
+    double scalingFactor = 15000.0;
     void* darr = darray_init(10000,sizeof(DVector3));
     float delta_t = delta_t_from_velocity(fabs(DVector3Length(init_rv.v)), scalingFactor);
     PhysicalState rv_init = rv;

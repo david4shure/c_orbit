@@ -29,7 +29,6 @@
 #include "physics/constants.h"
 #include "physics/time.h"
 #include "physics/kepler.h"
-#include "utils/rlutil.h"
 #include "utils/darray.h"
 #include "utils/logger.h"
 #include "physics/propagation.h"
@@ -45,6 +44,62 @@ Vector3 TF(DVector3 vec) {
 
 DVector3 TD(Vector3 vec) {
     return (DVector3){.x = (double)vec.x, .y = (double)vec.y, .z= (double)vec.z};
+}
+
+typedef struct TimeDisplayInfo{
+    int years;
+    int weeks;
+    int days;
+    int hours;
+    int minutes;
+    int seconds;
+} TimeDisplayInfo;
+
+TimeDisplayInfo get_time_info(double total_seconds) {
+    int years = 0;
+    int weeks = 0;
+    int days = 0;
+    int hours = 0;
+    int minutes = 0;
+    int seconds = 0;
+
+    double burndown_seconds = total_seconds;
+
+    if(fmod(burndown_seconds,SECONDS_IN_YEAR) >= 1) {
+        years = burndown_seconds / SECONDS_IN_YEAR;
+        burndown_seconds = fmod(burndown_seconds,SECONDS_IN_YEAR);
+    }
+
+    if (fmod(burndown_seconds,SECONDS_IN_WEEK) >= 1) {
+        weeks = burndown_seconds / SECONDS_IN_WEEK;
+        burndown_seconds = fmod(burndown_seconds,SECONDS_IN_WEEK);
+    }
+
+    if (fmod(burndown_seconds,SECONDS_IN_DAY) >= 1) {
+        days = burndown_seconds / SECONDS_IN_DAY;
+        burndown_seconds = fmod(burndown_seconds,SECONDS_IN_DAY);
+    }
+
+    if (fmod(burndown_seconds,SECONDS_IN_HOUR) >= 1) {
+        hours = burndown_seconds / SECONDS_IN_HOUR;
+        burndown_seconds = fmod(burndown_seconds,SECONDS_IN_HOUR);
+    }
+
+    if (fmod(burndown_seconds,SECONDS_IN_MINUTE) >= 1) {
+        minutes = burndown_seconds / SECONDS_IN_MINUTE;
+        burndown_seconds = fmod(burndown_seconds, SECONDS_IN_MINUTE);
+    }
+
+    seconds = burndown_seconds;
+
+    return (TimeDisplayInfo){
+        .years = years,
+        .weeks = weeks,
+        .days = days,
+        .hours = hours,
+        .minutes = minutes,
+        .seconds = seconds,
+    };
 }
 
 // Function to check if an object is behind the camera
@@ -77,7 +132,7 @@ void draw_orbital_lines(darray orbital_lines, ClassicalOrbitalElements oe, Physi
     PointBundle* prev_pos = NULL;
     PointBundle* current_pos = NULL;
     
-    float r_at_sphere_of_influence = calculate_sphere_of_influence_r(RV.mass_of_parent, oe.mass_of_parent, oe.mass_of_grandparent);
+    float r_at_sphere_of_influence = calculate_sphere_of_influence_r(EARTH_SEMIMAJOR_AXIS_KM, oe.mass_of_parent, oe.mass_of_grandparent);
     float r_at_soi_world_coords = r_at_sphere_of_influence * KM_TO_RENDER_UNITS;
 
     // Now iterate over our darray and draw lines
@@ -93,7 +148,13 @@ void draw_orbital_lines(darray orbital_lines, ClassicalOrbitalElements oe, Physi
             break;
         }
 
-        DrawLine3D(TF(vector_from_physical_to_world(current_pos->point)), TF(vector_from_physical_to_world(prev_pos->point)), BLUE);
+        Color myred = (Color){ 230, 41, 55, 100};
+
+        if (DVector3Length(current_pos->point) > r_at_sphere_of_influence) {
+            DrawLine3D(TF(vector_from_physical_to_world(current_pos->point)), TF(vector_from_physical_to_world(prev_pos->point)), myred);
+        } else {
+            DrawLine3D(TF(vector_from_physical_to_world(current_pos->point)), TF(vector_from_physical_to_world(prev_pos->point)), BLUE);
+        }
 
         prev_pos = current_pos;
     }
@@ -161,6 +222,9 @@ void draw_orbital_features(ClassicalOrbitalElements oe, PhysicalState RV, Nodes 
     DVector3 apoapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(oe, 0.0, 0.0, oe.period/2.0));
     DVector3 asc_node_point = vector_from_physical_to_world(n.asc);
     DVector3 desc_node_point = vector_from_physical_to_world(n.desc);
+    DVector3 positive_x = vector_from_physical_to_world((DVector3){EARTH_RADIUS_KM*10,0,0});
+    DVector3 positive_y = vector_from_physical_to_world((DVector3){0,EARTH_RADIUS_KM*10,0});
+    DVector3 positive_z = vector_from_physical_to_world((DVector3){0,0,EARTH_RADIUS_KM*10});
 
     Vector2 periapsis_point_camera = GetWorldToScreen(TF(periapsis_point), camera);
     Vector2 apoapsis_point_camera = GetWorldToScreen(TF(apoapsis_point), camera);
@@ -168,6 +232,9 @@ void draw_orbital_features(ClassicalOrbitalElements oe, PhysicalState RV, Nodes 
     Vector2 desc_point_camera = GetWorldToScreen(TF(desc_node_point), camera);
 
     Vector2 moon = GetWorldToScreen(TF(moon_pos_world), camera);
+    Vector2 positive_x_direction = GetWorldToScreen(TF(positive_x),camera);
+    Vector2 positive_y_direction = GetWorldToScreen(TF(positive_y),camera);
+    Vector2 positive_z_direction = GetWorldToScreen(TF(positive_z),camera);
 
 
     if (!is_object_behind_camera(camera.position, camera.target, TF(moon_pos_world))) {
@@ -195,6 +262,18 @@ void draw_orbital_features(ClassicalOrbitalElements oe, PhysicalState RV, Nodes 
     if (!is_object_behind_camera(camera.position, camera.target, TF(desc_node_point))) {
         DrawText("Desc",(int)desc_point_camera.x - MeasureText("Desc",10)/2,(int)desc_point_camera.y,10,ORANGE);
     }
+
+    if (!is_object_behind_camera(camera.position, camera.target, TF(positive_x))) {
+        DrawText("+x",(int)positive_x_direction.x,(int)positive_x_direction.y,13,LIGHTGRAY);
+    }
+    if (!is_object_behind_camera(camera.position, camera.target, TF(positive_y))) {
+        DrawText("+y",(int)positive_y_direction.x,(int)positive_y_direction.y,13,LIGHTGRAY);
+    }
+    if (!is_object_behind_camera(camera.position, camera.target, TF(positive_z))) {
+        DrawText("+z",(int)positive_z_direction.x,(int)positive_z_direction.y,13,LIGHTGRAY);
+    }
+
+
 }
 
 
@@ -220,7 +299,24 @@ void draw_textual_orbital_elements(ClassicalOrbitalElements oe, int num_lines) {
     draw_element("inclination = %.3f°", oe.inclination * RAD2DEG, left_padding, padding_between_rows * 5, text_color);
     draw_element("longitude of the ascending node = %.3f°", oe.long_of_asc_node * RAD2DEG, left_padding, padding_between_rows * 6, text_color);
     draw_element("number of lines = %.0f", (double)num_lines, screenWidth-140, padding_between_rows, GREEN);
+
+    TimeDisplayInfo time_info = get_time_info(oe.period);
+
+    char buffer[100];
+    snprintf(buffer, sizeof(buffer), "orbital period = %d years %d weeks %d days %d hours %d minutes %d seconds", time_info.years, time_info.weeks, time_info.days, time_info.hours, time_info.minutes, time_info.seconds);
+
+    DrawText(buffer,left_padding,padding_between_rows * 7,2,PURPLE);
 }
+
+void draw_clock_info(PhysicsTimeClock clock) {
+    TimeDisplayInfo time_info = get_time_info(clock.clock_seconds);
+
+    char buffer[100];
+    snprintf(buffer, sizeof(buffer), "%d years %d weeks %d days %d hours %d minutes %d seconds", time_info.years, time_info.weeks, time_info.days, time_info.hours, time_info.minutes, time_info.seconds);
+
+    DrawText(buffer,screenWidth/2-140,10,10,VIOLET);
+}
+
 
 //------------------------------------------------------------------------------------
 // Program main entry point
@@ -229,18 +325,8 @@ int main(void) {
     // Initialize Loggeruuu
     InitializeLogger(LOG_LEVEL,true);
 
-    // DEBUG : r={2646.36390,0.00000,172135.51695},v={2.15104,0.00000,-0.04530}
-    // r={535344.68601,0.00000,-253679.25784},v={0.61903,0.00000,-0.98094}
-    DVector3 moon_position = {384400.0,0.0,0.0};
-    DVector3 moon_velocity = {0.0,1.022,0.0};
-    /* DVector3 moon_position = {535344.68601,0.00000,-253679.25784}; */
-    /* DVector3 moon_velocity = {0.61903,0.00000,-0.98094}; */
-
-    // X =-1.434469380595836E+05 Y =-3.679580723218923E+05 Z =-3.718096192515444E+04
-    // VX= 5.910407088277736E-01 VY=-4.828271439706466E-01 VZ= 3.566713870051011E-02
-
-    /* DVector3 moon_position = {-1.434469380595836E+05,-3.679580723218923E+05,-3.718096192515444E+04}; */
-    /* DVector3 moon_velocity = { 5.910407088277736E-01,-4.828271439706466E-01, 3.566713870051011E-02}; */
+    DVector3 moon_position = {-3.955179399127587E+05,-5.322604944038965E+04,1.063540351362642E+04};
+    DVector3 moon_velocity = {1.646009855804641E-01,-9.678650138048399E-01,-8.717381215592590E-02};
 
     PhysicalState RV = {
         .r = moon_position,
@@ -398,6 +484,7 @@ int main(void) {
 
             draw_textual_orbital_elements(eles,darray_length(orbital_lines));
             draw_body_label(eles, RV, n, clock, camera, time);
+            draw_clock_info(clock);
 
             if (should_draw_orbital_features) {
                 draw_orbital_features(eles, RV, n, clock, camera, time);
@@ -407,6 +494,9 @@ int main(void) {
                 rlSetMatrixProjection(matProj);
 
                 if (should_draw_orbital_features) {
+                    DrawLine3D((Vector3){0,0,0},TF(vector_from_physical_to_world((DVector3){EARTH_RADIUS_KM*10,0,0})),RED);
+                    DrawLine3D((Vector3){0,0,0},TF(vector_from_physical_to_world((DVector3){0,EARTH_RADIUS_KM*10,0})),GREEN);
+                    DrawLine3D((Vector3){0,0,0},TF(vector_from_physical_to_world((DVector3){0,0,EARTH_RADIUS_KM*10})),BLUE);
                     draw_orbital_lines(orbital_lines,eles,RV,n,clock,camera,clock.clock_seconds);
                     darray_free(orbital_lines);
                 }
@@ -414,11 +504,13 @@ int main(void) {
                 Vector3 sphere_pos = {0.0,0.0,0.0};
 
                 DrawSphereWires(sphere_pos,EARTH_RADIUS_KM * KM_TO_RENDER_UNITS,10,10,SKYBLUE);
-                Color grid_color = { .r = 0, .g = 240, .b = 0, .a = 150};
                 DrawSphereWires(TF(vector_from_physical_to_world(RV.r)),MOON_RADIUS_KM * KM_TO_RENDER_UNITS,10,10,LIGHTGRAY);
-                DrawGridOfColor(250,500000,grid_color); // Draw equatorial plane 
                 DrawSphereWires(sphere_pos,(r_at_soi_world_coords),10,10,(Color){.r=255, .b=182, .g=193,.a=50});
+                Color grid_color = { .r = 0, .g = 240, .b = 0, .a = 150};
 
+                /* X-axis: Red */
+                /* Y-axis: Green */
+                /* Z-axis: Blue */
             EndMode3D();
 
 

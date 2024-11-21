@@ -157,7 +157,12 @@ double clampf(double x, double min, double max) {
 }
 
 double calculate_sphere_of_influence_r(double a, double mass_of_parent, double mass_of_grandparent) {
-    return a * powf(mass_of_parent/mass_of_grandparent,2.0/5.0);
+    Debug("a=%.4f\n",a);
+    Debug("parent_mass=%.4f\n",mass_of_parent);
+    Debug("grandparent_mass=%.4f\n",mass_of_grandparent);
+    double soi = a * powf(mass_of_parent/(3.0*mass_of_grandparent),1.0/3.0);
+    Debug("soi = %.4f\n",soi);
+    return soi;
 }
 
 TimeOfPassage compute_time_until(ClassicalOrbitalElements oe, double desired_true_anomaly, double t) {

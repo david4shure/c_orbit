@@ -7,10 +7,10 @@ typedef enum PhysicsTimeMode {
 
 typedef struct PhysicsTimeClock {
     enum PhysicsTimeMode mode;
-    float tick_interval_seconds;
-    float delta_seconds;
-    float clock_seconds;
-    float scale;
+    double tick_interval_seconds;
+    double delta_seconds;
+    double clock_seconds;
+    double scale;
 } PhysicsTimeClock;
 
 // Updates the physics clock based on the delta seconds that have elapsed since the last update
