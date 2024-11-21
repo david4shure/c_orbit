@@ -25,3 +25,6 @@
 
 - Elliptical Orbits
 <img width="1179" alt="Screenshot 2024-11-19 at 10 42 03 PM" src="https://github.com/user-attachments/assets/518b1665-c02c-41b1-b7a4-95ef9c0baabe">
+
+- XYZ Axes
+<img width="1489" alt="Screenshot 2024-11-20 at 6 06 43 PM" src="https://github.com/user-attachments/assets/293b9015-21a1-42c4-90b6-5e956f83a5e7">
