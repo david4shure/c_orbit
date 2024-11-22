@@ -86,6 +86,5 @@ void spherical_camera_system(float *r, float *theta, float *phi, Camera3D *camer
     } else {
         spherical_camera_system_click_to_drag(r,theta,phi,camera);
     }
-
 }
 

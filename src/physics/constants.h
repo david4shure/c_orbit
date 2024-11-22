@@ -21,6 +21,11 @@ static const double MOON_MASS_KG = 7.348e+22;
 static const double MOON_SEMIMAJOR_AXIS_KM = 384400.0;
 static const double MOON_RADIUS_KM = 1737.4;
 
+// Satellite related constants
+static const double SATELLITE_MASS_KG = 1000;
+static const double SATELLITE_SEMIMAJOR_AXIS = 10;
+static const double SATELLITE_RADIUS_KM = 10;
+
 // Sun mass kg
 static const double SUN_MASS_KG = 1.989e+30;
 
