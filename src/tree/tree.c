@@ -60,7 +60,7 @@ OrbitalTreeNode* load_earth_moon_system() {
         .mass = 1000, // KG
         .radius = MOON_RADIUS_KM/10.0,
         .grav_param = 1000 * G,
-        .sphere_of_influence = calculate_sphere_of_influence_r(SATELLITE_SEMIMAJOR_AXIS, SATELLITE_MASS_KG, EARTH_MASS_KG),
+        .sphere_of_influence = calculate_sphere_of_influence_r(SATELLITE_SEMIMAJOR_AXIS, SATELLITE_MASS_KG, MOON_MASS_KG),
     };
 
     PhysicalState satellite_physical_state = (PhysicalState){
@@ -167,7 +167,7 @@ OrbitalTreeNode* get_sphere_of_influence_for_node(darray bodies, OrbitalTreeNode
     }
 
     OrbitalTreeNode* soi_node = node->parent;
-    double current_soi = node->parent->physical_params.sphere_of_influence;
+    double closest_distance = 100000000000000000000.0;
 
     if (darray_length(bodies) > 0) {
         // Dont modify the parent of the root node
@@ -178,24 +178,29 @@ OrbitalTreeNode* get_sphere_of_influence_for_node(darray bodies, OrbitalTreeNode
         for (int j = 0; j < darray_length(bodies); j++) {
             OrbitalTreeNode** other_node= (OrbitalTreeNode**)darray_get(bodies,j);
 
-            Debug("Other node = %s\n",(*other_node)->body_name);
+            Debug("Checking if %s is in %s's soi\n",node->body_name,(*other_node)->body_name);
 
             if (node != *other_node) {
                 double distance_between_nodes = DVector3Distance(node->physical_state.r,(*other_node)->physical_state.r);
 
                 // are we in the soi AND does the compared node indicate that we are using a sphere of influence?
-                bool is_in_soi = distance_between_nodes < (*other_node)->physical_params.sphere_of_influence && (*other_node)->draw_sphere_of_influence;
+                bool is_in_soi = distance_between_nodes < (*other_node)->physical_params.sphere_of_influence;
+
+                Debug("distance between %s and %s = %.3f, soi = %.3f, in_soi?=%d\n",node->body_name,(*other_node)->body_name, distance_between_nodes,(*other_node)->physical_params.sphere_of_influence,is_in_soi);
+                Debug("is true=%d\n",is_in_soi);
 
                 // distance_between_nodes serves as a tiebreaker in the case
                 // where we are in two SOIs
-                if (is_in_soi && distance_between_nodes < current_soi) {
-                    // reassign parents / children
+                if (is_in_soi == true && distance_between_nodes < closest_distance) {
+                    Debug("trying to assign for %s and other %s\n",node->body_name,(*other_node)->body_name);
                     soi_node = *other_node;
-                    current_soi = (*other_node)->physical_params.sphere_of_influence;
+                    closest_distance = distance_between_nodes;
                 }
             }
         }
     }
+    
+    Debug("returning ... %s for %s\n",soi_node->body_name, node->body_name);
 
     return soi_node;
 }
@@ -251,13 +256,13 @@ void restructure_orbital_tree_recursive(OrbitalTreeNode* tree) {
             continue;
         }
 
-        /* parent->children = darray_pop_at(parent->children, index_of_this_child); */
+        parent->children = darray_pop_at(parent->children, index_of_this_child);
 
-        /* // Add the current node to the SOI as a child */
-        /* soi->children = darray_push(soi->children,node); */
+        // Add the current node to the SOI as a child
+        soi->children = darray_push(soi->children,node);
 
-        /* // Register the soi as our parent */
-        /* (*node)->parent = soi; */
+        // Register the soi as our parent
+        (*node)->parent = soi;
 
         Info("SOI of %s is %s\n",(*node)->body_name,soi->body_name);
     }

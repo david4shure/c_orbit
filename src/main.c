@@ -271,10 +271,10 @@ void draw_orbital_hierarchy(OrbitalTreeNode* tree, int depth, int width) {
     if (tree == NULL) {
         return;
     }
-    int vertical_padding = 10;
+    int vertical_padding = 15;
     int horizontal_padding = 10;
 
-    int horizontal_indentation_amount = 35;
+    int horizontal_indentation_amount = 10;
     int vertical_indentation_amount = 10;
 
     int vertical_offset = depth * vertical_indentation_amount + vertical_padding;
@@ -282,15 +282,11 @@ void draw_orbital_hierarchy(OrbitalTreeNode* tree, int depth, int width) {
 
     DrawText(tree->body_name,horizontal_offset,vertical_offset,10,LIME);
 
-    width ++;
-
     for (int j = 0; tree->children != NULL && j < darray_length(tree->children); j++) {
+        depth++;
         OrbitalTreeNode** child = (OrbitalTreeNode**)darray_get(tree->children,j);
 
-        draw_orbital_hierarchy(*child, depth+1, width);
-
-        int vertical_offset = depth * vertical_indentation_amount+ vertical_padding;
-        int horizontal_offset = width * horizontal_indentation_amount+ horizontal_padding;
+        draw_orbital_hierarchy(*child, depth+1, width+1);
     }
 }
 
