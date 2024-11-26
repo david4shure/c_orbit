@@ -111,6 +111,8 @@ void update_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node,
             clock.clock_seconds,
             node->parent->physical_params.sphere_of_influence * 5
         );
+
+        node->asc_desc = compute_nodes(node->orbital_elements);
     }
 
     for (int i = 0; i < darray_length(node->children) && node->children != NULL; i++) {
