@@ -4,7 +4,18 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "string.h"
 #include "../src/utils/logger.h"
+
+// Equality assertion for integers
+#define ASSERT_EQ_STR(expected, actual) \
+    InitializeLogger(DEBUG, true); \
+    if (strcmp(expected,actual) != 0) { \
+        Error("[FAIL] %s:%d: Expected %s, got %s\n", __FILE__, __LINE__, (expected), (actual)); \
+        exit(1); \
+    } else { \
+        Log("[PASS] %s:%d: %d == %d\n", __FILE__, __LINE__, (expected), (actual)); \
+    }
 
 // Equality assertion for integers
 #define ASSERT_EQ(expected, actual) \

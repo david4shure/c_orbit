@@ -30,6 +30,8 @@ typedef struct OrbitalTreeNode {
     struct OrbitalTreeNode* parent;
     // Children (darray<OrbitalTreeNode**> type) MALLOC
     darray children;
+    // Color of body sphere
+    Color body_color;
     // Color of orbital lines
     Color line_color;
     // Orbital lines (darray<PointBundle> type) MALLOC
@@ -43,12 +45,21 @@ OrbitalTreeNode* load_earth_moon_system();
 darray dfs_orbital_tree_nodes(OrbitalTreeNode* n, darray list);
 
 // Updates the state of our Orbital Tree recursively
-void update_orbital_tree_recursive(OrbitalTreeNode* node, PhysicsTimeClock clock);
+void update_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock clock);
 
 // Post order traversal of orbital tree to find the current SOI for a given node
 OrbitalTreeNode* get_sphere_of_influence_for_node(darray bodies, OrbitalTreeNode* node);
 
 // Reconstructs the tree based on sphere of influence etc.
 void restructure_orbital_tree_recursive(OrbitalTreeNode* tree);
+
+// Does tree have node beneath it?
+bool subtree_has_node(OrbitalTreeNode* tree, OrbitalTreeNode* node);
+
+// Construct a list of nodes that is a path from root to node_to_find
+darray get_path_to(OrbitalTreeNode* root, OrbitalTreeNode* node_to_find, darray arr_of_nodes);
+
+// Gets a position in 3d space corresponding to the current node's global position
+DVector3 get_global_offset_for_node(OrbitalTreeNode* root, OrbitalTreeNode* node);
 
 #endif

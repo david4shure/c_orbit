@@ -128,7 +128,7 @@ Color interpolate_color(Color color1, Color color2, float t) {
 }
 
 
-void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera) {
+void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera, DVector3 center) {
     if (orbital_lines == NULL) {
         return;
     }
@@ -146,6 +146,8 @@ void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, PhysicsTime
         }
 
         current_pos = darray_get(orbital_lines, i);
+
+        current_pos->point = DVector3Add(current_pos->point,center);
 
         if (current_pos == NULL) {
             break;
@@ -169,7 +171,7 @@ void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, PhysicsTime
     }
 }
 
-void draw_orbital_features(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera) {
+void draw_orbital_features(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera, DVector3 center) {
     float max_distance = 5000.0;
     float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-node->physical_state.r.x,camera.position.y-node->physical_state.r.y,camera.position.z-node->physical_state.r.z});
     float distance_scale_factor = max_distance/camera_to_moon_distance;
@@ -185,13 +187,31 @@ void draw_orbital_features(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera
     // sqrt((x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2)
     float dist = DVector3Distance(body_pos_world, TD(camera.position));
 
-    DVector3 periapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(node->orbital_elements, 0.0, 0.0, 0.0));
-    DVector3 apoapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(node->orbital_elements, 0.0, 0.0, node->orbital_elements.period/2.0));
-    DVector3 asc_node_point = vector_from_physical_to_world(node->asc_desc.asc);
-    DVector3 desc_node_point = vector_from_physical_to_world(node->asc_desc.desc);
-    DVector3 positive_x = vector_from_physical_to_world((DVector3){EARTH_RADIUS_KM*10,0,0});
-    DVector3 positive_y = vector_from_physical_to_world((DVector3){0,EARTH_RADIUS_KM*10,0});
-    DVector3 positive_z = vector_from_physical_to_world((DVector3){0,0,EARTH_RADIUS_KM*10});
+    DVector3 periapsis_point = solve_kepler_ellipse_inertial(node->orbital_elements, 0.0, 0.0, 0.0);
+    DVector3 apoapsis_point = solve_kepler_ellipse_inertial(node->orbital_elements, 0.0, 0.0, node->orbital_elements.period/2.0);
+    DVector3 asc_node_point = node->asc_desc.asc;
+    DVector3 desc_node_point = node->asc_desc.desc;
+    DVector3 positive_x = (DVector3){EARTH_RADIUS_KM*10,0,0};
+    DVector3 positive_y = (DVector3){0,EARTH_RADIUS_KM*10,0};
+    DVector3 positive_z = (DVector3){0,0,EARTH_RADIUS_KM*10};
+
+    // Account for center offset
+    periapsis_point = DVector3Add(periapsis_point, center);
+    apoapsis_point  = DVector3Add(apoapsis_point, center);
+    asc_node_point  = DVector3Add(asc_node_point, center);
+    desc_node_point = DVector3Add(desc_node_point, center);
+    positive_x      = DVector3Add(positive_x, center);
+    positive_y      = DVector3Add(positive_y, center);
+    positive_z      = DVector3Add(positive_z, center);
+
+    // Vector from physical to render coordinates
+    periapsis_point = vector_from_physical_to_world(periapsis_point);
+    apoapsis_point  = vector_from_physical_to_world(apoapsis_point);
+    asc_node_point  = vector_from_physical_to_world(asc_node_point);
+    desc_node_point = vector_from_physical_to_world(desc_node_point);
+    positive_x      = vector_from_physical_to_world(positive_x);
+    positive_y      = vector_from_physical_to_world(positive_y);
+    positive_z      = vector_from_physical_to_world(positive_z);
 
     Vector2 periapsis_point_camera = GetWorldToScreen(TF(periapsis_point), camera);
     Vector2 apoapsis_point_camera = GetWorldToScreen(TF(apoapsis_point), camera);
@@ -267,10 +287,10 @@ void draw_textual_orbital_elements(ClassicalOrbitalElements oe, int num_lines) {
 }
 
 void draw_orbital_hierarchy(OrbitalTreeNode* tree, int depth, int width) {
-
     if (tree == NULL) {
         return;
     }
+
     int vertical_padding = 15;
     int horizontal_padding = 10;
 
@@ -299,14 +319,16 @@ void draw_clock_info(PhysicsTimeClock clock) {
     DrawText(buffer,screenWidth/2-140,10,10,VIOLET);
 }
 
-void draw_body(OrbitalTreeNode* node, Camera3D camera) {
-    DrawSphereWires(TF(vector_from_physical_to_world(node->physical_state.r)),node->physical_params.radius * KM_TO_RENDER_UNITS,10,10,SKYBLUE);
+void draw_body(OrbitalTreeNode* node, Camera3D camera, DVector3 center) {
+    Vector3 position = TF(vector_from_physical_to_world(DVector3Add(center, node->physical_state.r)));
+    DrawSphereWires(position,node->physical_params.radius * KM_TO_RENDER_UNITS,10,10,node->body_color);
 }
 
-void draw_sphere_of_influence(OrbitalTreeNode* node, Camera3D camera) {
+void draw_sphere_of_influence(OrbitalTreeNode* node, Camera3D camera, DVector3 center) {
+    Vector3 position = TF(vector_from_physical_to_world(DVector3Add(center, node->physical_state.r)));
     if (node->draw_sphere_of_influence) {
         Debug("drawing sphere of influence for %s\n",node->body_name);
-        DrawSphereWires(TF(vector_from_physical_to_world(node->physical_state.r)),node->physical_params.sphere_of_influence * KM_TO_RENDER_UNITS,10,10,(Color){.r=255, .b=182, .g=193,.a=50});
+        DrawSphereWires(position,node->physical_params.sphere_of_influence * KM_TO_RENDER_UNITS,10,10,(Color){.r=255, .b=182, .g=193,.a=50});
     }
 }
 
@@ -320,34 +342,33 @@ void draw_sphere_of_influence(OrbitalTreeNode* node, Camera3D camera) {
 // 4. Draw orbital ring
 // 5. Draw orbital features
 // 6. Draw sphere of influence
-void draw_orbital_tree_recursive(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera3d, bool should_draw_orbital_features, Matrix proj) {
+void draw_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera3d, bool should_draw_orbital_features, Matrix proj) {
     bool is_root_node = node->parent == NULL;
 
     Info("Rendering %s\n",node->body_name);
 
-    // Compute next position
-    // TODO: Use true numerical integration here.
+    DVector3 center = get_global_offset_for_node(root,node);
 
     if (!is_root_node) {
         // Drawing steps for non root nodes
         if (should_draw_orbital_features) {
-            draw_orbital_features(node, clock, camera3d);
+            draw_orbital_features(node, clock, camera3d, center);
         }
     }
   
     BeginMode3D(camera3d);
     rlSetMatrixProjection(proj);
     if (should_draw_orbital_features) {
-        draw_orbital_lines(node->orbital_lines, node, clock, camera3d);
+        draw_orbital_lines(node->orbital_lines, node, clock, camera3d,center);
     }
-    draw_sphere_of_influence(node,camera3d);
-    draw_body(node,camera3d);
+    draw_sphere_of_influence(node,camera3d,center);
+    draw_body(node,camera3d,center);
     EndMode3D();
 
     // Iterate over children & recurse!
     for (int i = 0; i < darray_length(node->children); i++) {
         OrbitalTreeNode** item = (OrbitalTreeNode**)darray_get(node->children,i);
-        draw_orbital_tree_recursive(*item, clock, camera3d, should_draw_orbital_features,proj);
+        draw_orbital_tree_recursive(root, *item, clock, camera3d, should_draw_orbital_features,proj);
     }
 }
 
@@ -438,7 +459,7 @@ int main(void) {
         UpdatePhysicsClock(&clock, delta);
 
         Info("Updating orbital node...\n");
-        update_orbital_tree_recursive(root, clock);
+        update_orbital_tree_recursive(root,root,clock);
         restructure_orbital_tree_recursive(root);
         darray list = darray_init(10,sizeof(OrbitalTreeNode**));
         darray bodies = dfs_orbital_tree_nodes(root, list);
@@ -460,7 +481,7 @@ int main(void) {
 
             spherical_camera_system(&r, &theta, &phi, &camera,is_click_to_drag_on);
 
-            draw_orbital_tree_recursive(root,clock,camera,should_draw_orbital_features,matProj);
+            draw_orbital_tree_recursive(root,root,clock,camera,should_draw_orbital_features,matProj);
             draw_orbital_hierarchy(root, 0, 0);
             BeginMode3D(camera);
                 rlSetMatrixProjection(matProj);
