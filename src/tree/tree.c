@@ -64,8 +64,8 @@ OrbitalTreeNode* load_earth_moon_system() {
     };
 
     PhysicalState satellite_physical_state = (PhysicalState){
-        .r = (DVector3){-3.955179399127587E+05,-5.322604944038965E+04,0.463540351362642E+04},
-        .v = (DVector3){1.646009855804641E-01,-4.678650138048399E-01,-2.717381215592590E-02},
+        .r = (DVector3){-3.955179399127587E+05,-5.322604944038965E+04,1.463540351362642E+04},
+        .v = (DVector3){1.646009855804641E-01,-8.678650138048399E-01,-2.717381215592590E-02},
     };
 
     OrbitalTreeNode* satellite = malloc(sizeof(OrbitalTreeNode));
@@ -85,49 +85,62 @@ OrbitalTreeNode* load_earth_moon_system() {
     return earth;
 }
 
-
 void update_orbital_tree_recursive(OrbitalTreeNode* node, PhysicsTimeClock clock) {
     bool is_root_node = node->parent == NULL;
 
-    Info("Updating %s\n",node->body_name);
-
-    if (!is_root_node && node->use_state_vector) {
-        node->orbital_elements = rv_to_classical_elements(node->physical_state,node->parent->physical_params.grav_param);
-    } else if (!is_root_node) {
-        node->physical_state = classical_elements_to_rv(node->orbital_elements,node->parent->physical_params.grav_param);
-    }
-
-    // Compute next position
-    // TODO: Use true numerical integration here.
     if (!is_root_node) {
-        node->physical_state = rv_from_r0v0(node->physical_state, node->parent->physical_params.grav_param, clock.delta_seconds);
-        node->orbital_elements = rv_to_classical_elements(node->physical_state, node->parent->physical_params.grav_param);
+        // Step 1: Compute relative state
+        PhysicalState parent_state = node->parent->physical_state;
+        PhysicalState relative_state = {
+            .r = DVector3Subtract(node->physical_state.r, parent_state.r),
+            .v = DVector3Subtract(node->physical_state.v, parent_state.v),
+        };
 
-        print_physical_state(node->physical_state);
-        print_orbital_elements(node->body_name,node->orbital_elements);
+        // Step 2: Propagate relative state using parent parameters
+        relative_state = rv_from_r0v0(relative_state, node->parent->physical_params.grav_param, clock.delta_seconds);
 
-        node->asc_desc = compute_nodes(node->orbital_elements);
+        // Step 3: Update orbital elements
+        node->orbital_elements = rv_to_classical_elements(relative_state, node->parent->physical_params.grav_param);
 
-        // Free previous orbital lines
-        if(node->orbital_lines != NULL && node->parent == NULL) {
+        // Step 4: Transform back to global state
+        PhysicalState global_state = {
+            .r = DVector3Add(relative_state.r, parent_state.r),
+            .v = DVector3Add(relative_state.v, parent_state.v),
+        };
+
+        node->physical_state = global_state;
+
+        // Step 5: Compute orbital lines in the parent-relative frame
+        if (node->orbital_lines != NULL) {
             darray_free(node->orbital_lines);
             node->orbital_lines = NULL;
         }
 
-        Debug("Computing orbital lines\n");
-        node->orbital_lines = compute_orbital_lines(node->physical_state, node->parent->physical_params.grav_param, clock.clock_seconds, node->physical_params.sphere_of_influence*2);
-        Debug("Done computing orbital lines\n");
+        node->orbital_lines = compute_orbital_lines(
+            relative_state,
+            node->parent->physical_params.grav_param,
+            clock.clock_seconds,
+            node->parent->physical_params.sphere_of_influence * 5
+        );
+
+        // Step 6: Transform orbital lines to global frame
+        for (int i = 0; i < darray_length(node->orbital_lines); i++) {
+            PointBundle* bundle = (PointBundle*)darray_get(node->orbital_lines, i);
+
+            // Back to global frame
+            bundle->point = DVector3Add(bundle->point, parent_state.r);
+
+            darray_set(node->orbital_lines, (void*)bundle, i);
+        }
     }
 
-    // Iterate over children & recurse!
+    // Step 7: Update children recursively
     for (int i = 0; i < darray_length(node->children) && node->children != NULL; i++) {
-        OrbitalTreeNode** child = (OrbitalTreeNode**)darray_get(node->children,i);
-        Info("Updating %s child of %s\n",(*child)->body_name,node->body_name);
+        OrbitalTreeNode** child = (OrbitalTreeNode**)darray_get(node->children, i);
         update_orbital_tree_recursive((*child), clock);
     }
-
-    Debug("Returning from %s\n",node->body_name);
 }
+
 
 // Returns list of OrbitalTreeNode in pre order
 darray dfs_orbital_tree_nodes(OrbitalTreeNode* tree, darray list) {
@@ -202,6 +215,12 @@ OrbitalTreeNode* get_sphere_of_influence_for_node(darray bodies, OrbitalTreeNode
     
     Debug("returning ... %s for %s\n",soi_node->body_name, node->body_name);
 
+    // Did something change?
+    if(node->parent != soi_node) {
+        // Convert coordinates to new body?
+        Error("CHANGING SPHERE OF INFLUENCES\n");
+    }
+
     return soi_node;
 }
 
@@ -256,16 +275,23 @@ void restructure_orbital_tree_recursive(OrbitalTreeNode* tree) {
             continue;
         }
 
+        // Pop the child from its old parents array
         parent->children = darray_pop_at(parent->children, index_of_this_child);
 
-        // Add the current node to the SOI as a child
+        // Push the current node to the SOI's children
         soi->children = darray_push(soi->children,node);
 
-        // Register the soi as our parent
+        // Register the soi as the current node's parent
         (*node)->parent = soi;
 
         Info("SOI of %s is %s\n",(*node)->body_name,soi->body_name);
     }
 
     darray_free(bodies);
+}
+
+darray get_path_to(OrbitalTreeNode* root, OrbitalTreeNode* node_to_find, darray arr_of_nodes) {
+    // DFS Search
+    int i = 0;
+    return (void*)NULL;
 }

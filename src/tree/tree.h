@@ -39,8 +39,10 @@ typedef struct OrbitalTreeNode {
 // Mallocs things FYI
 OrbitalTreeNode* load_earth_moon_system();
 
+// Returns vector of orbital tree nodes in pre order
 darray dfs_orbital_tree_nodes(OrbitalTreeNode* n, darray list);
 
+// Updates the state of our Orbital Tree recursively
 void update_orbital_tree_recursive(OrbitalTreeNode* node, PhysicsTimeClock clock);
 
 // Post order traversal of orbital tree to find the current SOI for a given node

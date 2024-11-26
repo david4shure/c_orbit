@@ -26,6 +26,7 @@ double delta_t_from_velocity(double velocityMagnitude, double scalingFactor) {
 // It should be freed accordingly
 darray compute_orbital_lines(PhysicalState rv, double grav_param, float t, float max_render_distance) {
     ClassicalOrbitalElements oe = rv_to_classical_elements(rv,grav_param);
+    print_orbital_elements("lines lol", oe);
     Debug("e=%.5f\n",oe.eccentricity);
     if (oe.eccentricity < 1.0) { // Ellipse
         return compute_orbital_lines_ellipse(oe,rv);
