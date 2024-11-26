@@ -1,5 +1,6 @@
 #pragma once
 
+#include "corbit_math.h"
 #ifndef ORBITALLINES_H
 #define ORBITALLINES_H 
 

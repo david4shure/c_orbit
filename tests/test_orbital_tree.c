@@ -28,7 +28,7 @@ int main() {
     ASSERT_EQ(subtree_has_node(moon, satellite),false);
 
     // restructure the tree, satellite will get parented under the moon
-    restructure_orbital_tree_recursive(tree);
+    restructure_orbital_tree_recursive(tree,tree);
 
     moon = *(OrbitalTreeNode**)darray_get(earth->children,0);
 

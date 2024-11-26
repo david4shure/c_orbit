@@ -16,6 +16,8 @@ typedef struct OrbitalTreeNode {
     ClassicalOrbitalElements orbital_elements;
     // Position / Velocity Vectors
     PhysicalState physical_state;
+    // Position / Velocity Vectors
+    PhysicalState global_physical_state;
     // Positions of ascending and descending nodes
     OrbitalNodes asc_desc;
     bool is_state_vector_initialized;
@@ -48,10 +50,10 @@ darray dfs_orbital_tree_nodes(OrbitalTreeNode* n, darray list);
 void update_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock clock);
 
 // Post order traversal of orbital tree to find the current SOI for a given node
-OrbitalTreeNode* get_sphere_of_influence_for_node(darray bodies, OrbitalTreeNode* node);
+OrbitalTreeNode* get_sphere_of_influence_for_node(darray bodies, OrbitalTreeNode* root, OrbitalTreeNode* node);
 
 // Reconstructs the tree based on sphere of influence etc.
-void restructure_orbital_tree_recursive(OrbitalTreeNode* tree);
+void restructure_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* tree);
 
 // Does tree have node beneath it?
 bool subtree_has_node(OrbitalTreeNode* tree, OrbitalTreeNode* node);
@@ -59,7 +61,10 @@ bool subtree_has_node(OrbitalTreeNode* tree, OrbitalTreeNode* node);
 // Construct a list of nodes that is a path from root to node_to_find
 darray get_path_to(OrbitalTreeNode* root, OrbitalTreeNode* node_to_find, darray arr_of_nodes);
 
-// Gets a position in 3d space corresponding to the current node's global position
-DVector3 get_global_offset_for_node(OrbitalTreeNode* root, OrbitalTreeNode* node);
+// Gets a Physical State in 3d space corresponding to the current node's global Physical State (position+velocity)
+PhysicalState get_global_state_for_node(OrbitalTreeNode* root, OrbitalTreeNode* node);
+
+// Gets a position in 3d space corresponding to the current nodes global position
+DVector3 get_offset_position_for_node(OrbitalTreeNode* root, OrbitalTreeNode* node);
 
 #endif

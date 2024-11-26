@@ -147,8 +147,6 @@ void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, PhysicsTime
 
         current_pos = darray_get(orbital_lines, i);
 
-        current_pos->point = DVector3Add(current_pos->point,center);
-
         if (current_pos == NULL) {
             break;
         }
@@ -156,9 +154,9 @@ void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, PhysicsTime
         Color myred = (Color){ 230, 41, 55, 100};
 
         if (DVector3Length(current_pos->point) > r_at_sphere_of_influence) {
-            DrawLine3D(TF(vector_from_physical_to_world(current_pos->point)), TF(vector_from_physical_to_world(prev_pos->point)), myred);
+            DrawLine3D(TF(vector_from_physical_to_world(DVector3Add(current_pos->point,center))), TF(vector_from_physical_to_world(DVector3Add(prev_pos->point,center))), myred);
         } else {
-            DrawLine3D(TF(vector_from_physical_to_world(current_pos->point)), TF(vector_from_physical_to_world(prev_pos->point)), node->line_color);
+            DrawLine3D(TF(vector_from_physical_to_world(DVector3Add(current_pos->point,center))), TF(vector_from_physical_to_world(DVector3Add(prev_pos->point,center))), node->line_color);
         }
 
         prev_pos = current_pos;
@@ -167,7 +165,7 @@ void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, PhysicsTime
     Color myyellow = (Color){ 253, 249, 0, 100};
 
     if (node->orbital_elements.eccentricity < 1.0) {
-        DrawLine3D(TF(vector_from_physical_to_world(node->asc_desc.asc)), TF(vector_from_physical_to_world(node->asc_desc.desc)), myyellow);
+        DrawLine3D(TF(vector_from_physical_to_world(DVector3Add(node->asc_desc.asc,center))), TF(vector_from_physical_to_world(DVector3Add(node->asc_desc.desc,center))), myyellow);
     }
 }
 
@@ -176,6 +174,7 @@ void draw_orbital_features(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera
     float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-node->physical_state.r.x,camera.position.y-node->physical_state.r.y,camera.position.z-node->physical_state.r.z});
     float distance_scale_factor = max_distance/camera_to_moon_distance;
     float time_scale_factor = sin(clock.clock_seconds*1.5)/4.0 + 1;
+    DVector3 body_pos_world = vector_from_physical_to_world(DVector3Add(node->physical_state.r,center));
 
     float scale_factor = distance_scale_factor * time_scale_factor;
     double velocity = DVector3Length(node->physical_state.v);
@@ -183,7 +182,6 @@ void draw_orbital_features(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera
     // Format the float as a string
     snprintf(velocity_str, sizeof(velocity_str), "V=%.2f KM/s", velocity);
 
-    DVector3 body_pos_world = vector_from_physical_to_world(node->physical_state.r);
     // sqrt((x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2)
     float dist = DVector3Distance(body_pos_world, TD(camera.position));
 
@@ -347,13 +345,10 @@ void draw_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, P
 
     Info("Rendering %s\n",node->body_name);
 
-    DVector3 center = get_global_offset_for_node(root,node);
+    DVector3 center = get_offset_position_for_node(root,node);
 
-    if (!is_root_node) {
-        // Drawing steps for non root nodes
-        if (should_draw_orbital_features) {
-            draw_orbital_features(node, clock, camera3d, center);
-        }
+    if (!is_root_node && should_draw_orbital_features) {
+        draw_orbital_features(node, clock, camera3d, center);
     }
   
     BeginMode3D(camera3d);
@@ -460,7 +455,7 @@ int main(void) {
 
         Info("Updating orbital node...\n");
         update_orbital_tree_recursive(root,root,clock);
-        restructure_orbital_tree_recursive(root);
+        restructure_orbital_tree_recursive(root,root);
         darray list = darray_init(10,sizeof(OrbitalTreeNode**));
         darray bodies = dfs_orbital_tree_nodes(root, list);
 

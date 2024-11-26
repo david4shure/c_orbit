@@ -52,7 +52,8 @@ darray compute_orbital_lines_non_ellipse(ClassicalOrbitalElements oe, PhysicalSt
         rv = rv_from_r0v0(rv, grav_param, -delta_t);
         float distance = fabs(DVector3Length(rv.r));
         hit_max_dist = distance > max_render_distance;
-        darr = darray_insert_at(darr,(void*)&rv.r,0);
+        DVector3 position = rv.r;
+        darr = darray_insert_at(darr,(void*)&position,0);
         time -= delta_t;
         num_points++;
         if (num_points > MAX_POINTS) {
@@ -73,7 +74,8 @@ darray compute_orbital_lines_non_ellipse(ClassicalOrbitalElements oe, PhysicalSt
         rv = rv_from_r0v0(rv, grav_param, delta_t);
         float distance = fabs(DVector3Length(rv.r));
         hit_max_dist = distance > max_render_distance;
-        darr = darray_push(darr, (void*)&rv.r);
+        DVector3 position = rv.r;
+        darr = darray_push(darr, (void*)&position);
         time += delta_t;
         num_points++;
         if (num_points > MAX_POINTS) {
