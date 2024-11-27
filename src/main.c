@@ -454,8 +454,8 @@ int main(void) {
         UpdatePhysicsClock(&clock, delta);
 
         Info("Updating orbital node...\n");
-        update_orbital_tree_recursive(root,root,clock);
         restructure_orbital_tree_recursive(root,root);
+        update_orbital_tree_recursive(root,root,clock);
         darray list = darray_init(10,sizeof(OrbitalTreeNode**));
         darray bodies = dfs_orbital_tree_nodes(root, list);
 
