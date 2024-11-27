@@ -29,9 +29,9 @@
 #include "physics/constants.h"
 #include "physics/time.h"
 #include "physics/kepler.h"
+#include "tree.h"
 #include "utils/darray.h"
 #include "utils/logger.h"
-#include "physics/propagation.h"
 
 #define LOG_LEVEL DEBUG
 
@@ -128,11 +128,14 @@ Color interpolate_color(Color color1, Color color2, float t) {
 }
 
 
-void draw_orbital_lines(darray orbital_lines, ClassicalOrbitalElements oe, PhysicalState RV, Nodes n, PhysicsTimeClock clock, Camera3D camera, float time) {
+void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera, DVector3 center) {
+    if (orbital_lines == NULL) {
+        return;
+    }
     PointBundle* prev_pos = NULL;
     PointBundle* current_pos = NULL;
     
-    float r_at_sphere_of_influence = calculate_sphere_of_influence_r(EARTH_SEMIMAJOR_AXIS_KM, oe.mass_of_parent, oe.mass_of_grandparent);
+    float r_at_sphere_of_influence = node->parent->physical_params.sphere_of_influence;
     float r_at_soi_world_coords = r_at_sphere_of_influence * KM_TO_RENDER_UNITS;
 
     // Now iterate over our darray and draw lines
@@ -151,9 +154,9 @@ void draw_orbital_lines(darray orbital_lines, ClassicalOrbitalElements oe, Physi
         Color myred = (Color){ 230, 41, 55, 100};
 
         if (DVector3Length(current_pos->point) > r_at_sphere_of_influence) {
-            DrawLine3D(TF(vector_from_physical_to_world(current_pos->point)), TF(vector_from_physical_to_world(prev_pos->point)), myred);
+            DrawLine3D(TF(vector_from_physical_to_world(DVector3Add(current_pos->point,center))), TF(vector_from_physical_to_world(DVector3Add(prev_pos->point,center))), myred);
         } else {
-            DrawLine3D(TF(vector_from_physical_to_world(current_pos->point)), TF(vector_from_physical_to_world(prev_pos->point)), BLUE);
+            DrawLine3D(TF(vector_from_physical_to_world(DVector3Add(current_pos->point,center))), TF(vector_from_physical_to_world(DVector3Add(prev_pos->point,center))), node->line_color);
         }
 
         prev_pos = current_pos;
@@ -161,86 +164,66 @@ void draw_orbital_lines(darray orbital_lines, ClassicalOrbitalElements oe, Physi
     
     Color myyellow = (Color){ 253, 249, 0, 100};
 
-    if (oe.eccentricity < 1.0) {
-        DrawLine3D(TF(vector_from_physical_to_world(n.asc)), TF(vector_from_physical_to_world(n.desc)), myyellow);
+    if (node->orbital_elements.eccentricity < 1.0) {
+        DrawLine3D(TF(vector_from_physical_to_world(DVector3Add(node->asc_desc.asc,center))), TF(vector_from_physical_to_world(DVector3Add(node->asc_desc.desc,center))), myyellow);
     }
 }
 
-
-void draw_body_label(ClassicalOrbitalElements oe, PhysicalState RV, Nodes n, PhysicsTimeClock clock, Camera3D camera, float time) {
+void draw_orbital_features(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera, DVector3 center) {
     float max_distance = 5000.0;
-    float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-RV.r.x,camera.position.y-RV.r.y,camera.position.z-RV.r.z});
+    float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-node->physical_state.r.x,camera.position.y-node->physical_state.r.y,camera.position.z-node->physical_state.r.z});
     float distance_scale_factor = max_distance/camera_to_moon_distance;
-    float time_scale_factor = sin(time*1.5)/4.0 + 1;
+    float time_scale_factor = sin(clock.clock_seconds*1.5)/4.0 + 1;
+    DVector3 body_pos_world = vector_from_physical_to_world(DVector3Add(node->physical_state.r,center));
 
     float scale_factor = distance_scale_factor * time_scale_factor;
-    double velocity = DVector3Length(RV.v);
+    double velocity = DVector3Length(node->physical_state.v);
     char velocity_str[20];  // Buffer for the formatted string
     // Format the float as a string
     snprintf(velocity_str, sizeof(velocity_str), "V=%.2f KM/s", velocity);
 
-    DVector3 moon_pos_world = vector_from_physical_to_world(RV.r);
     // sqrt((x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2)
-    float dist = DVector3Distance(moon_pos_world, TD(camera.position));
+    float dist = DVector3Distance(body_pos_world, TD(camera.position));
 
-    DVector3 periapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(oe, 0.0, 0.0, 0.0));
-    DVector3 apoapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(oe, 0.0, 0.0, oe.period/2.0));
-    DVector3 asc_node_point = vector_from_physical_to_world(n.asc);
-    DVector3 desc_node_point = vector_from_physical_to_world(n.desc);
+    DVector3 periapsis_point = solve_kepler_ellipse_inertial(node->orbital_elements, 0.0, 0.0, 0.0);
+    DVector3 apoapsis_point = solve_kepler_ellipse_inertial(node->orbital_elements, 0.0, 0.0, node->orbital_elements.period/2.0);
+    DVector3 asc_node_point = node->asc_desc.asc;
+    DVector3 desc_node_point = node->asc_desc.desc;
+    DVector3 positive_x = (DVector3){EARTH_RADIUS_KM*10,0,0};
+    DVector3 positive_y = (DVector3){0,EARTH_RADIUS_KM*10,0};
+    DVector3 positive_z = (DVector3){0,0,EARTH_RADIUS_KM*10};
+
+    // Account for center offset
+    periapsis_point = DVector3Add(periapsis_point, center);
+    apoapsis_point  = DVector3Add(apoapsis_point, center);
+    asc_node_point  = DVector3Add(asc_node_point, center);
+    desc_node_point = DVector3Add(desc_node_point, center);
+    positive_x      = DVector3Add(positive_x, center);
+    positive_y      = DVector3Add(positive_y, center);
+    positive_z      = DVector3Add(positive_z, center);
+
+    // Vector from physical to render coordinates
+    periapsis_point = vector_from_physical_to_world(periapsis_point);
+    apoapsis_point  = vector_from_physical_to_world(apoapsis_point);
+    asc_node_point  = vector_from_physical_to_world(asc_node_point);
+    desc_node_point = vector_from_physical_to_world(desc_node_point);
+    positive_x      = vector_from_physical_to_world(positive_x);
+    positive_y      = vector_from_physical_to_world(positive_y);
+    positive_z      = vector_from_physical_to_world(positive_z);
 
     Vector2 periapsis_point_camera = GetWorldToScreen(TF(periapsis_point), camera);
     Vector2 apoapsis_point_camera = GetWorldToScreen(TF(apoapsis_point), camera);
     Vector2 asc_point_camera = GetWorldToScreen(TF(asc_node_point), camera);
     Vector2 desc_point_camera = GetWorldToScreen(TF(desc_node_point), camera);
 
-    Vector2 moon = GetWorldToScreen(TF(moon_pos_world), camera);
-
-    if (!is_object_behind_camera(camera.position, camera.target, TF(moon_pos_world))) {
-        DrawText("MOON",(int)moon.x - MeasureText("MOON",10)/2,(int)moon.y - MeasureText("MOON", 10),10,GREEN);
-        DrawText(velocity_str,(int)moon.x - MeasureText(velocity_str,10)/2,(int)moon.y - MeasureText(velocity_str,10),10,GREEN);
-    }
-}
-
-
-void draw_orbital_features(ClassicalOrbitalElements oe, PhysicalState RV, Nodes n, PhysicsTimeClock clock, Camera3D camera, float time) {
-    float max_distance = 5000.0;
-    float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-RV.r.x,camera.position.y-RV.r.y,camera.position.z-RV.r.z});
-    float distance_scale_factor = max_distance/camera_to_moon_distance;
-    float time_scale_factor = sin(time*1.5)/4.0 + 1;
-
-    float scale_factor = distance_scale_factor * time_scale_factor;
-    double velocity = DVector3Length(RV.v);
-    char velocity_str[20];  // Buffer for the formatted string
-    // Format the float as a string
-    snprintf(velocity_str, sizeof(velocity_str), "V=%.2f KM/s", velocity);
-
-    DVector3 moon_pos_world = vector_from_physical_to_world(RV.r);
-    // sqrt((x1-x2)^2 + (y1-y2)^2 + (z1-z2)^2)
-    float dist = DVector3Distance(moon_pos_world, TD(camera.position));
-
-    DVector3 periapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(oe, 0.0, 0.0, 0.0));
-    DVector3 apoapsis_point = vector_from_physical_to_world(solve_kepler_ellipse_inertial(oe, 0.0, 0.0, oe.period/2.0));
-    DVector3 asc_node_point = vector_from_physical_to_world(n.asc);
-    DVector3 desc_node_point = vector_from_physical_to_world(n.desc);
-    DVector3 positive_x = vector_from_physical_to_world((DVector3){EARTH_RADIUS_KM*10,0,0});
-    DVector3 positive_y = vector_from_physical_to_world((DVector3){0,EARTH_RADIUS_KM*10,0});
-    DVector3 positive_z = vector_from_physical_to_world((DVector3){0,0,EARTH_RADIUS_KM*10});
-
-    Vector2 periapsis_point_camera = GetWorldToScreen(TF(periapsis_point), camera);
-    Vector2 apoapsis_point_camera = GetWorldToScreen(TF(apoapsis_point), camera);
-    Vector2 asc_point_camera = GetWorldToScreen(TF(asc_node_point), camera);
-    Vector2 desc_point_camera = GetWorldToScreen(TF(desc_node_point), camera);
-
-    Vector2 moon = GetWorldToScreen(TF(moon_pos_world), camera);
+    Vector2 body = GetWorldToScreen(TF(body_pos_world), camera);
     Vector2 positive_x_direction = GetWorldToScreen(TF(positive_x),camera);
     Vector2 positive_y_direction = GetWorldToScreen(TF(positive_y),camera);
     Vector2 positive_z_direction = GetWorldToScreen(TF(positive_z),camera);
 
-
-    if (!is_object_behind_camera(camera.position, camera.target, TF(moon_pos_world))) {
-        DrawRing(moon, 14*(scale_factor), 15*(scale_factor), 0.0, 360.0,20, GRAY);
-        DrawText("MOON",(int)moon.x - MeasureText("MOON",10)/2,(int)moon.y - MeasureText("MOON", 10),10,GREEN);
-        DrawText(velocity_str,(int)moon.x - MeasureText(velocity_str,10)/2,(int)moon.y - MeasureText(velocity_str,10),10,GREEN);
+    if (!is_object_behind_camera(camera.position, camera.target, TF(body_pos_world))) {
+        DrawText(node->body_name,(int)body.x - MeasureText(node->body_name,10)/2,(int)body.y - MeasureText(node->body_name, 10),10,GREEN);
+        DrawText(velocity_str,(int)body.x - MeasureText(velocity_str,10)/2,(int)body.y - MeasureText(velocity_str,10),10,GREEN);
     }
     if (!is_object_behind_camera(camera.position, camera.target, TF(periapsis_point))) {
         DrawText("Pa",(int)periapsis_point_camera.x - MeasureText("Pa",10)/2,(int)periapsis_point_camera.y - MeasureText("Pa", 10),10,SKYBLUE);
@@ -258,7 +241,7 @@ void draw_orbital_features(ClassicalOrbitalElements oe, PhysicalState RV, Nodes 
         DrawText("+z",(int)positive_z_direction.x,(int)positive_z_direction.y,13,LIGHTGRAY);
     }
 
-    if (oe.eccentricity >= 1.0) {
+    if (node->orbital_elements.eccentricity >= 1.0) {
         return;
     }
 
@@ -269,7 +252,6 @@ void draw_orbital_features(ClassicalOrbitalElements oe, PhysicalState RV, Nodes 
         DrawText("Desc",(int)desc_point_camera.x - MeasureText("Desc",10)/2,(int)desc_point_camera.y,10,ORANGE);
     }
 }
-
 
 void draw_element(char* format_text, double value, int x, int y, Color color) {
     char buffer[50];  // Buffer for the formatted string
@@ -302,6 +284,30 @@ void draw_textual_orbital_elements(ClassicalOrbitalElements oe, int num_lines) {
     DrawText(buffer,left_padding,padding_between_rows * 7,2,PURPLE);
 }
 
+void draw_orbital_hierarchy(OrbitalTreeNode* tree, int depth, int width) {
+    if (tree == NULL) {
+        return;
+    }
+
+    int vertical_padding = 15;
+    int horizontal_padding = 10;
+
+    int horizontal_indentation_amount = 10;
+    int vertical_indentation_amount = 10;
+
+    int vertical_offset = depth * vertical_indentation_amount + vertical_padding;
+    int horizontal_offset = width * horizontal_indentation_amount + horizontal_padding;
+
+    DrawText(tree->body_name,horizontal_offset,vertical_offset,10,LIME);
+
+    for (int j = 0; tree->children != NULL && j < darray_length(tree->children); j++) {
+        depth++;
+        OrbitalTreeNode** child = (OrbitalTreeNode**)darray_get(tree->children,j);
+
+        draw_orbital_hierarchy(*child, depth+1, width+1);
+    }
+}
+
 void draw_clock_info(PhysicsTimeClock clock) {
     TimeDisplayInfo time_info = get_time_info(clock.clock_seconds);
 
@@ -309,6 +315,56 @@ void draw_clock_info(PhysicsTimeClock clock) {
     snprintf(buffer, sizeof(buffer), "%d years %d weeks %d days %d hours %d minutes %d seconds", time_info.years, time_info.weeks, time_info.days, time_info.hours, time_info.minutes, time_info.seconds);
 
     DrawText(buffer,screenWidth/2-140,10,10,VIOLET);
+}
+
+void draw_body(OrbitalTreeNode* node, Camera3D camera, DVector3 center) {
+    Vector3 position = TF(vector_from_physical_to_world(DVector3Add(center, node->physical_state.r)));
+    DrawSphereWires(position,node->physical_params.radius * KM_TO_RENDER_UNITS,10,10,node->body_color);
+}
+
+void draw_sphere_of_influence(OrbitalTreeNode* node, Camera3D camera, DVector3 center) {
+    Vector3 position = TF(vector_from_physical_to_world(DVector3Add(center, node->physical_state.r)));
+    if (node->draw_sphere_of_influence) {
+        Debug("drawing sphere of influence for %s\n",node->body_name);
+        DrawSphereWires(position,node->physical_params.sphere_of_influence * KM_TO_RENDER_UNITS,10,10,(Color){.r=255, .b=182, .g=193,.a=50});
+    }
+}
+
+// What are the steps?
+// 1. Compute position of the body
+//     a. Get initial position from either PhysicalState or ClassicalOrbitalElements to start.
+//     b. Compute orbital elements and update them in the OrbitalTreeNode*
+// 2. Compute asc and descending nodes
+// 3. Compute orbital lines
+// 3. Draw name of body (if not root)
+// 4. Draw orbital ring
+// 5. Draw orbital features
+// 6. Draw sphere of influence
+void draw_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera3d, bool should_draw_orbital_features, Matrix proj) {
+    bool is_root_node = node->parent == NULL;
+
+    Info("Rendering %s\n",node->body_name);
+
+    DVector3 center = get_offset_position_for_node(root,node);
+
+    if (!is_root_node && should_draw_orbital_features) {
+        draw_orbital_features(node, clock, camera3d, center);
+    }
+  
+    BeginMode3D(camera3d);
+    rlSetMatrixProjection(proj);
+    if (should_draw_orbital_features) {
+        draw_orbital_lines(node->orbital_lines, node, clock, camera3d,center);
+    }
+    draw_sphere_of_influence(node,camera3d,center);
+    draw_body(node,camera3d,center);
+    EndMode3D();
+
+    // Iterate over children & recurse!
+    for (int i = 0; i < darray_length(node->children); i++) {
+        OrbitalTreeNode** item = (OrbitalTreeNode**)darray_get(node->children,i);
+        draw_orbital_tree_recursive(root, *item, clock, camera3d, should_draw_orbital_features,proj);
+    }
 }
 
 
@@ -319,26 +375,16 @@ int main(void) {
     // Initialize Loggeruuu
     InitializeLogger(LOG_LEVEL,true);
 
-    DVector3 moon_position = {-3.955179399127587E+05,-5.322604944038965E+04,1.063540351362642E+04};
-    DVector3 moon_velocity = {1.646009855804641E-01,-9.678650138048399E-01,-8.717381215592590E-02};
-
-    PhysicalState RV = {
-        .r = moon_position,
-        .v = moon_velocity,
-        .mass_of_parent = EARTH_MASS_KG,
-        .mass_of_grandparent = SUN_MASS_KG,
-        .mass = MOON_MASS_KG,
+    PhysicsTimeClock clock = {
+        .tick_interval_seconds = 86400,
+        .mode = Elapsing,
+        .scale = 10000.0,
+        .delta_seconds = 0.0,
+        .clock_seconds = 0.0
     };
 
-    float M_naught = 2.35585;
-    float t_naught = 0.0;
-    ClassicalOrbitalElements eles = rv_to_classical_elements(RV);
-
-    PhysicsTimeClock clock = { .tick_interval_seconds = 86400, .mode = Elapsing, .scale = 10000.0, .delta_seconds = 0.0, .clock_seconds = 0.0};
-
     //--------------------------------------------------------------------------------------
-
-    InitWindow(screenWidth, screenHeight, "raylib [core] example - 3d camera first person");
+    InitWindow(screenWidth, screenHeight, "C Orbit");
 
     // Define the camera to look into our 3d world (position, target, up vector)
     Camera camera = { 0 };
@@ -356,6 +402,8 @@ int main(void) {
     float theta = 0.0;
     float phi = PI;
 
+    OrbitalTreeNode* root = load_earth_moon_system();
+
     // Indicates if the camera
     bool is_click_to_drag_on = true;
 
@@ -366,13 +414,9 @@ int main(void) {
     SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
     //--------------------------------------------------------------------------------------
     float delta;
-    print_physical_state(RV);
 
     darray orbital_lines;
 
-    // Initial slider value and integer input value
-    float sliderValue = 50.0f;
-    int intValue = 10;
     bool should_draw_orbital_features = true;
 
     // Main game loop
@@ -380,23 +424,6 @@ int main(void) {
     {
         time = GetTime();
         delta = GetFrameTime();
-
-        UpdatePhysicsClock(&clock, delta);
-
-        RV = rv_from_r0v0(RV,clock.delta_seconds); 
-        ClassicalOrbitalElements neweles = rv_to_classical_elements(RV);
-        PhysicalState lilrv = classical_elements_to_rv(eles);
-        Info("physical state r = (%.2f,%.2f,%.2f), v = (%.2f, %.2f, %.2f)\n",RV.r.x,RV.r.y,RV.r.z,RV.v.x,RV.v.y,RV.v.z);
-        Info("Eles = \n");
-        print_orbital_elements(neweles);
-        Info("rv_from_orb_elems r = (%.2f,%.2f,%.2f), v = (%.2f, %.2f, %.2f)\n",lilrv.r.x,lilrv.r.y,lilrv.r.z,lilrv.v.x,lilrv.v.y,lilrv.v.z);
-
-        Debug("r={%.5f,%.5f,%.5f},v={%.5f,%.5f,%.5f}\n",RV.r.x,RV.r.y,RV.r.z,RV.v.x,RV.v.y,RV.v.z);
-
-        eles = rv_to_classical_elements(RV);
-        print_orbital_elements(eles);
-        moon_position = RV.r;
-        moon_velocity = RV.v;
 
         Info("is_click_to_drag_on = %d\n",is_click_to_drag_on);
         if(IsKeyPressed(KEY_L)) {
@@ -406,77 +433,6 @@ int main(void) {
                 DisableCursor();
             }
             is_click_to_drag_on = !is_click_to_drag_on;
-        }
-
-        if(IsKeyDown(KEY_RIGHT) || IsKeyPressed(KEY_RIGHT)) {
-            double scale = 1.0;
-
-            if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                scale *= 0.1;
-            }
-
-            DVector3 forward = DVector3Scale(DVector3Normalize(RV.v),10000000000000000000000.0*scale);
-
-            Debug("Forward vector = (%.4f, %.4f, %.4f)\n",forward.x,forward.y,forward.z);
-
-            Debug("Applying force\n");
-            RV = apply_force_to(RV, forward, delta);
-            Debug("Printing physical state.\n");
-
-            print_physical_state(RV);
-        }
-
-
-        if(IsKeyDown(KEY_LEFT) || IsKeyPressed(KEY_LEFT)) {
-            double scale = 1.0;
-
-            if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                scale *= 0.1;
-            }
-            DVector3 backwards = DVector3Scale(DVector3Normalize(RV.v),-10000000000000000000000.0*scale);
-
-            Debug("Forward vector = (%.4f, %.4f, %.4f)\n",backwards.x,backwards.y,backwards.z);
-
-            Debug("Applying force\n");
-            RV = apply_force_to(RV, backwards, delta);
-            Debug("Printing physical state.\n");
-
-            print_physical_state(RV);
-        }
-
-        if(IsKeyDown(KEY_UP) || IsKeyPressed(KEY_UP)) {
-            double scale = 1.0;
-
-            if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                scale *= 0.1;
-            }
-            DVector3 up = DVector3Scale(DVector3Normalize(DVector3CrossProduct(RV.r, RV.v)),10000000000000000000000.0*scale);
-
-            Debug("Up vector = (%.4f, %.4f, %.4f)\n",up.x,up.y,up.z);
-
-            Debug("Applying force\n");
-            RV = apply_force_to(RV, up, delta);
-            Debug("Printing physical state.\n");
-
-            print_physical_state(RV);
-        }
-
-
-        if(IsKeyDown(KEY_DOWN) || IsKeyPressed(KEY_DOWN)) {
-            double scale = 1.0;
-
-            if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                scale *= 0.1;
-            }
-            DVector3 down = DVector3Scale(DVector3Normalize(DVector3CrossProduct(RV.r, RV.v)),-10000000000000000000000.0*scale);
-
-            Debug("Down vector = (%.4f, %.4f, %.4f)\n",down.x,down.y,down.z);
-
-            Debug("Applying force\n");
-            RV = apply_force_to(RV, down, delta);
-            Debug("Printing physical state.\n");
-
-            print_physical_state(RV);
         }
 
         if(IsKeyDown(KEY_D) || IsKeyPressed(KEY_D)) {
@@ -495,18 +451,22 @@ int main(void) {
             }
         }
 
+        UpdatePhysicsClock(&clock, delta);
+
+        Info("Updating orbital node...\n");
+        restructure_orbital_tree_recursive(root,root);
+        update_orbital_tree_recursive(root,root,clock);
+        darray list = darray_init(10,sizeof(OrbitalTreeNode**));
+        darray bodies = dfs_orbital_tree_nodes(root, list);
+
+        for (int i = 0; darray_length(bodies) > 0 && i < darray_length(bodies);i++) {
+            OrbitalTreeNode** child = (OrbitalTreeNode**)darray_get(bodies,i);
+            Log("i = %d, body= %s\n",i,(*child)->body_name);
+        }
+
         if(IsKeyPressed(KEY_V)) {
             should_draw_orbital_features = !should_draw_orbital_features;
         }
-
-        eles = rv_to_classical_elements(RV);
-
-
-        float r_at_sphere_of_influence = calculate_sphere_of_influence_r(EARTH_SEMIMAJOR_AXIS_KM, eles.mass_of_parent, eles.mass_of_grandparent);
-        float r_at_soi_world_coords = r_at_sphere_of_influence * KM_TO_RENDER_UNITS;
-        
-        darray orbital_lines = compute_orbital_lines(RV, clock.clock_seconds, r_at_sphere_of_influence*3);
-        int len_lines = darray_length(orbital_lines);
 
         // Draw
         //----------------------------------------------------------------------------------
@@ -516,16 +476,8 @@ int main(void) {
 
             spherical_camera_system(&r, &theta, &phi, &camera,is_click_to_drag_on);
 
-            Nodes n = compute_nodes(eles);
-
-            draw_textual_orbital_elements(eles,darray_length(orbital_lines));
-            draw_body_label(eles, RV, n, clock, camera, time);
-            draw_clock_info(clock);
-
-            if (should_draw_orbital_features) {
-                draw_orbital_features(eles, RV, n, clock, camera, time);
-            }
-
+            draw_orbital_tree_recursive(root,root,clock,camera,should_draw_orbital_features,matProj);
+            draw_orbital_hierarchy(root, 0, 0);
             BeginMode3D(camera);
                 rlSetMatrixProjection(matProj);
 
@@ -533,20 +485,10 @@ int main(void) {
                     DrawLine3D((Vector3){0,0,0},TF(vector_from_physical_to_world((DVector3){EARTH_RADIUS_KM*10,0,0})),RED);
                     DrawLine3D((Vector3){0,0,0},TF(vector_from_physical_to_world((DVector3){0,EARTH_RADIUS_KM*10,0})),GREEN);
                     DrawLine3D((Vector3){0,0,0},TF(vector_from_physical_to_world((DVector3){0,0,EARTH_RADIUS_KM*10})),BLUE);
-                    draw_orbital_lines(orbital_lines,eles,RV,n,clock,camera,clock.clock_seconds);
-                    darray_free(orbital_lines);
                 }
 
-                Vector3 sphere_pos = {0.0,0.0,0.0};
+                Info("Drawing orbital node...\n");
 
-                DrawSphereWires(sphere_pos,EARTH_RADIUS_KM * KM_TO_RENDER_UNITS,10,10,SKYBLUE);
-                DrawSphereWires(TF(vector_from_physical_to_world(RV.r)),MOON_RADIUS_KM * KM_TO_RENDER_UNITS,10,10,LIGHTGRAY);
-                DrawSphereWires(sphere_pos,(r_at_soi_world_coords),10,10,(Color){.r=255, .b=182, .g=193,.a=50});
-                Color grid_color = { .r = 0, .g = 240, .b = 0, .a = 150};
-
-                /* X-axis: Red */
-                /* Y-axis: Green */
-                /* Z-axis: Blue */
             EndMode3D();
 
 

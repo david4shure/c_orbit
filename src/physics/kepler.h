@@ -10,15 +10,11 @@ typedef struct PhysicalParameters {
     double radius;
     double mass;
     double grav_param;
+    double sphere_of_influence;
 } PhysicalParameters;
 
 // We do everything in radians here
 typedef struct ClassicalOrbitalElements {
-    // Physical parameters of an orbit
-    double mass_of_parent; // Mass of the central body KG e.g. Earth
-    double mass_of_grandparent; // Mass of the central body's central body KG e.g. Sun
-    double grav_param; // Specific gravitational parameter for central body IE G * M
-    
     // Geometrical parameters of an orbit
     double semimajor_axis; // semi-major axis KMs
     double semilatus_rectum; // p, semilatus rectum KMs
@@ -44,8 +40,6 @@ typedef struct PhysicalState {
     DVector3 r; // Position in inertial frame 
     DVector3 v; // Velocity in inertial frame
     double mass; // Mass of the satellite
-    double mass_of_parent; // Mass of the central body KG e.g. Earth
-    double mass_of_grandparent; // Mass of the central body's central body KG e.g. Sun
 } PhysicalState;
 
 typedef struct LagrangeCoefs {
@@ -66,10 +60,11 @@ typedef struct TimeOfPassage {
     double current_time; // seconds
 } TimeOfPassage;
 
-typedef struct Nodes {
+// ie. Ascending or Descending nodes
+typedef struct OrbitalNodes {
     DVector3 asc;
     DVector3 desc;
-} Nodes;
+} OrbitalNodes;
 
 // Mean anomaly as a function of M_naught (Mean anomaly at epoch, t time, t_naught time of M_naught, T orbital period)
 double mean_anom(double M_naught, double t, double t_naught, double T); 
@@ -105,7 +100,7 @@ double stump_s(double z);
 double distance_sphere_coords(double e, double a, double E);
 
 // Computes the time until the desired_true_anomaly given then orbital elements and current time
-TimeOfPassage compute_time_until(ClassicalOrbitalElements oe, double desired_true_anomaly, double t);
+TimeOfPassage compute_time_until(ClassicalOrbitalElements oe, double grav_param, double desired_true_anomaly, double t);
 
 // Gives the distance at which the sphere of influence begins/ends for the inner body
 double calculate_sphere_of_influence_r(double a, double mass_of_body, double mass_of_satellite);
@@ -114,10 +109,10 @@ double calculate_sphere_of_influence_r(double a, double mass_of_body, double mas
 TimeOfPassage compute_time_of_passage(ClassicalOrbitalElements oe, double grav_param, double t);
 
 // Gets orbital elements in struct form from R (position) V (velcoity) vectors.
-ClassicalOrbitalElements rv_to_classical_elements(PhysicalState rv);
+ClassicalOrbitalElements rv_to_classical_elements(PhysicalState rv, double grav_param);
 
 // Gets R (position), V (velocity) vectors from ClassicalOrbitalElements
-PhysicalState classical_elements_to_rv(ClassicalOrbitalElements elems);
+PhysicalState classical_elements_to_rv(ClassicalOrbitalElements elems,double grav_param);
 
 // Solves for universal anomaly (algorithm 3.3, curtis D.5)
 // Units: km^0.5
@@ -130,7 +125,7 @@ LagrangeCoefs compute_lagrange_f_g(double univ_anomaly, double t, double r0, dou
 LagrangeTimeDerivs compute_lagrange_fdot_gdot(double univ_anomaly, double t, double r0, double a, double grav_param);
 
 // Computes the position R, and velocity V given an initial position vector R0 and velocity vector V0, after time t
-PhysicalState rv_from_r0v0(PhysicalState rv, double t);
+PhysicalState rv_from_r0v0(PhysicalState rv, double grav_param, double t);
 
 // Solves keplers equation for the carteesian coords in inertial frame
 // with proper rotations applied (inclination, arg periapsis, long asc, etc)
@@ -153,7 +148,7 @@ DVector3 vector_from_world_to_physical(DVector3 vec);
 DVector3 vector_from_physical_to_world(DVector3 vec);
 
 // Prints orbital elements duh
-void print_orbital_elements(ClassicalOrbitalElements e);
+void print_orbital_elements(char* body_name, ClassicalOrbitalElements e);
 
 // Prints physical state duh
 void print_physical_state(PhysicalState rv);
@@ -168,6 +163,6 @@ DVector3 inertial_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_no
 double periapsis_distance(ClassicalOrbitalElements oe);
 
 // Function to compute ascending and descending node positions
-Nodes compute_nodes(ClassicalOrbitalElements oe);
+OrbitalNodes compute_nodes(ClassicalOrbitalElements oe);
 
 #endif

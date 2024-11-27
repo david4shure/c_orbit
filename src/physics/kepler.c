@@ -4,7 +4,6 @@
 #include "constants.h"
 #include "../utils/logger.h"
 #include "assert.h"
-#include "../../tests/test_utils.h"
 
 double wrap_angle(double angle) {
     if (angle < 0) {
@@ -165,7 +164,7 @@ double calculate_sphere_of_influence_r(double a, double mass_of_parent, double m
     return soi;
 }
 
-TimeOfPassage compute_time_until(ClassicalOrbitalElements oe, double desired_true_anomaly, double t) {
+TimeOfPassage compute_time_until(ClassicalOrbitalElements oe, double grav_param, double desired_true_anomaly, double t) {
     // First check orbit type
     if (oe.eccentricity < 1.0) {
         // t-M/n = t_naught !!
@@ -182,7 +181,7 @@ TimeOfPassage compute_time_until(ClassicalOrbitalElements oe, double desired_tru
         // Time until periapsis (Δt) in a parabolic orbit:
         // Δt = t0 - t = -(1/2) * sqrt(p^3 / (2 * μ)) * (D + (D^3 / 3))
         // where D = tan(θ / 2) and p is the semi-latus rectum.
-        double duration_until_periapsis = -0.5 * sqrt(pow(oe.semilatus_rectum,3)/(2*oe.grav_param)) * (D + pow(D,3)/3);
+        double duration_until_periapsis = -0.5 * sqrt(pow(oe.semilatus_rectum,3)/(2*grav_param)) * (D + pow(D,3)/3);
 
         return (TimeOfPassage) {
             .time_at_point = t + duration_until_periapsis,
@@ -211,9 +210,8 @@ double distance_sphere_coords(double e, double a, double E) {
     return a * (1. - e * cos(E));
 }
 
-ClassicalOrbitalElements rv_to_classical_elements(PhysicalState rv) {
+ClassicalOrbitalElements rv_to_classical_elements(PhysicalState rv, double grav_param) {
    double eps = 1.e-10;
-   double grav_param = rv.mass_of_parent * G;
 
    // Position and velocity vectors
    DVector3 R = rv.r;
@@ -323,25 +321,21 @@ ClassicalOrbitalElements rv_to_classical_elements(PhysicalState rv) {
        .long_of_asc_node = wrap_angle(Ra),
        .arg_of_periapsis = wrap_angle(w),
        .true_anomaly = wrap_angle(Ta),
-       .grav_param = grav_param,
        .period = T,
        .ang_momentum = h,
        .ang_momentum_vec = h_hat,
        .semilatus_rectum = p,
        .mean_motion = mean_motion,
-       .mass_of_parent = rv.mass_of_parent,
-       .mass_of_grandparent = rv.mass_of_grandparent,
        .periapsis_distance = periapsis,
        .apoapsis_distance = apoapsis
    };
 }
 
-void print_orbital_elements(ClassicalOrbitalElements elems) {
-    Debug("------\n");
+void print_orbital_elements(char* body_name, ClassicalOrbitalElements elems) {
+    Debug("--- %s ---\n",body_name);
     Debug("semi-major axis = %f\n",elems.semimajor_axis);
     Debug("eccentricity = %f\n",elems.eccentricity);
     Debug("orbital period (s) = %f\n",elems.period);
-    Debug("grav param = %f\n",elems.grav_param);
     Debug("mean anomaly = %f degrees\n",elems.mean_anomaly * D_RAD2DEG);
     Debug("eccentric anomaly = %f degrees\n",elems.eccentric_anomaly * D_RAD2DEG);
     Debug("hyperbolic anomaly = %f degrees\n",elems.hyperbolic_anomaly * D_RAD2DEG);
@@ -360,8 +354,8 @@ void print_physical_state(PhysicalState rv) {
     Debug("-------\n");
 }
 
-PhysicalState classical_elements_to_rv(ClassicalOrbitalElements elems) {
-    double mu = elems.grav_param;
+PhysicalState classical_elements_to_rv(ClassicalOrbitalElements elems,double grav_param) {
+    double mu = grav_param;
     double h = elems.ang_momentum;
 
     // Calculate the radius
@@ -416,8 +410,6 @@ PhysicalState classical_elements_to_rv(ClassicalOrbitalElements elems) {
     return (PhysicalState){
         .r = r_inertial,
         .v = v_inertial,
-        .mass_of_parent = elems.mass_of_parent,
-        .mass_of_grandparent = elems.mass_of_grandparent
     };
 }
 
@@ -548,9 +540,7 @@ LagrangeTimeDerivs compute_lagrange_fdot_gdot(double univ_anomaly, double r, dou
     };
 }
 
-PhysicalState rv_from_r0v0(PhysicalState rv, double t) {
-    double grav_param = G * rv.mass_of_parent;
-
+PhysicalState rv_from_r0v0(PhysicalState rv, double grav_param, double t) {
     double r0 = DVector3Length(rv.r);
     double v0 = DVector3Length(rv.v);
 
@@ -580,8 +570,6 @@ PhysicalState rv_from_r0v0(PhysicalState rv, double t) {
     return (PhysicalState){
         .r = R,
         .v = V,
-        .mass_of_parent = rv.mass_of_parent,
-        .mass_of_grandparent = rv.mass_of_grandparent,
         .mass = rv.mass,
     };
 }
@@ -656,7 +644,7 @@ double periapsis_distance(ClassicalOrbitalElements oe) {
 }
 
 
-Nodes compute_nodes(ClassicalOrbitalElements oe) {
+OrbitalNodes compute_nodes(ClassicalOrbitalElements oe) {
     // True anomalies at nodes
     double nu_ascending = 0.0 - oe.arg_of_periapsis;       // Ascending node
     double nu_descending = M_PI - oe.arg_of_periapsis;    // Descending node
@@ -695,7 +683,7 @@ Nodes compute_nodes(ClassicalOrbitalElements oe) {
         oe.inclination
     );
 
-    Nodes n = {
+    OrbitalNodes n = {
         ascending_node,
         descending_node,
     };
