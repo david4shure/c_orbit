@@ -1,5 +1,15 @@
 # C Orbit is an orbital simulation written in C, using raylib
 
+# Screenshots
+- Patched conics / Orbital Tree
+<video src="https://github.com/user-attachments/assets/7dc03f54-1fc5-4ace-9054-d87ab199ae50" />
+
+- Parabolic / Hyperbolic Trajectories
+<img width="1487" alt="Screenshot 2024-11-19 at 5 41 20 PM" src="https://github.com/user-attachments/assets/135dff61-7895-4d4b-9869-dd329fe5fb26">
+
+- Elliptical Orbits
+<img width="1179" alt="Screenshot 2024-11-19 at 10 42 03 PM" src="https://github.com/user-attachments/assets/518b1665-c02c-41b1-b7a4-95ef9c0baabe">
+
 # Features
 - Full keplerian orbital simulation
     - Orbital position is computed by solving for Kepler's universal anomaly & Lagrange Functions (stumpc, stumps)
@@ -17,15 +27,3 @@
     - 2 Body trajectories, to the moon and back for example.
 - Load orbital data from simple text files which define arbitrary hierarchies of bodies and their orbital elements
     - Camera functions to traverse this hierarchy
-
-# Screenshots
-
-- Patched conics / Orbital Tree
-<video width="560" height="315" src="https://github.com/user-attachments/assets/89d17014-aaea-4bbd-87af-984d8b0637f0" frameborder="0" allowfullscreen></video>
-
-- Parabolic / Hyperbolic Trajectories
-<img width="1487" alt="Screenshot 2024-11-19 at 5 41 20 PM" src="https://github.com/user-attachments/assets/135dff61-7895-4d4b-9869-dd329fe5fb26">
-
-- Elliptical Orbits
-<img width="1179" alt="Screenshot 2024-11-19 at 10 42 03 PM" src="https://github.com/user-attachments/assets/518b1665-c02c-41b1-b7a4-95ef9c0baabe">
-
