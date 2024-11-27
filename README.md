@@ -1,14 +1,7 @@
 # C Orbit is an orbital simulation written in C, using raylib
 
-# Screenshots
-- Patched conics / Orbital Tree
-<video src="https://github.com/user-attachments/assets/7dc03f54-1fc5-4ace-9054-d87ab199ae50" />
-
-- Parabolic / Hyperbolic Trajectories
-<img width="1487" alt="Screenshot 2024-11-19 at 5 41 20 PM" src="https://github.com/user-attachments/assets/135dff61-7895-4d4b-9869-dd329fe5fb26">
-
-- Elliptical Orbits
-<img width="1179" alt="Screenshot 2024-11-19 at 10 42 03 PM" src="https://github.com/user-attachments/assets/518b1665-c02c-41b1-b7a4-95ef9c0baabe">
+# Demo
+<video width="640" height="360" src="https://github.com/user-attachments/assets/7dc03f54-1fc5-4ace-9054-d87ab199ae50" controls></video>
 
 # Features
 - Full keplerian orbital simulation
