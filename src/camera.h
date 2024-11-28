@@ -4,4 +4,11 @@
 #include "raylib.h"
 #endif
 
-void spherical_camera_system(float* r, float* theta, float* phi, Camera3D* camera, bool is_locked);
+#ifndef CAMERAH
+#define CAMERAH
+
+#include "tree.h"
+
+void spherical_camera_system(DVector3 offset, float* r, float* theta, float* phi, Camera3D* camera, bool is_locked);
+
+#endif

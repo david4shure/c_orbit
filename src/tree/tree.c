@@ -6,6 +6,7 @@
 #include "../physics/orbital_lines.h"
 #include "raylib.h"
 
+// MALLOCS!
 OrbitalTreeNode* load_earth_moon_system() {
     PhysicalParameters earth_physical_parameters = (PhysicalParameters){
         .mass=EARTH_MASS_KG,
@@ -65,6 +66,7 @@ OrbitalTreeNode* load_earth_moon_system() {
     PhysicalState satellite_physical_state = (PhysicalState){
         .r = (DVector3){-0.4855179399127587E+05,0.1322604944038965E+04,0.0063540351362642E+04},
         .v = (DVector3){2.33646009855804641E-01,-2.6678650138048399E-01,-0.117381215592590E-02},
+        .mass = satellite_physical_parameters.mass,
     };
 
     OrbitalTreeNode* satellite = malloc(sizeof(OrbitalTreeNode));
@@ -87,14 +89,14 @@ OrbitalTreeNode* load_earth_moon_system() {
 
 // It is assumed that for every OrbitalTreeNode, its coordinates are relative to its 
 // parents
-void update_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock clock) {
+void update_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock* clock) {
     bool is_root_node = node->parent == NULL;
 
     if (!is_root_node) {
         PhysicalState parent_state = node->parent->physical_state;
         PhysicalState current_state = node->physical_state;
 
-        current_state = rv_from_r0v0(current_state, node->parent->physical_params.grav_param, clock.delta_seconds);
+        current_state = rv_from_r0v0(current_state, node->parent->physical_params.grav_param, clock->delta_seconds);
 
         node->orbital_elements = rv_to_classical_elements(current_state, node->parent->physical_params.grav_param);
 
@@ -108,7 +110,7 @@ void update_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node,
         node->orbital_lines = compute_orbital_lines(
             current_state,
             node->parent->physical_params.grav_param,
-            clock.clock_seconds,
+            clock->clock_seconds,
             node->parent->physical_params.sphere_of_influence * 5
         );
 
@@ -404,4 +406,18 @@ PhysicalState get_global_state_for_node(OrbitalTreeNode* root, OrbitalTreeNode* 
 DVector3 get_offset_position_for_node(OrbitalTreeNode* root, OrbitalTreeNode* node) {
     PhysicalState s = get_global_state_for_node(root, node);
     return s.r;
+}
+
+PhysicalState global_physical_state(OrbitalTreeNode* root, OrbitalTreeNode* node) {
+    // global offset 
+    PhysicalState offset = get_global_state_for_node(root, node);
+
+    // Compute global state of soi node
+    PhysicalState state;
+
+    // Compute global r and v of parent
+    state.r = DVector3Add(offset.r,node->physical_state.r);
+    state.v = DVector3Add(offset.v,node->physical_state.v);
+
+    return state;
 }

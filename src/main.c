@@ -22,6 +22,7 @@
 #include <objc/objc.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include "raygui.h"
 
 #include "math.h"
@@ -32,6 +33,7 @@
 #include "tree.h"
 #include "utils/darray.h"
 #include "utils/logger.h"
+#include "physics/propagation.h"
 
 #define LOG_LEVEL DEBUG
 
@@ -46,6 +48,13 @@ DVector3 TD(Vector3 vec) {
     return (DVector3){.x = (double)vec.x, .y = (double)vec.y, .z= (double)vec.z};
 }
 
+typedef struct ProgramState {
+    OrbitalTreeNode* tree;
+    PhysicsTimeClock* clock;
+    OrbitalTreeNode* focused_node;
+    int sibling_index;
+} ProgramState;
+
 typedef struct TimeDisplayInfo{
     int years;
     int weeks;
@@ -54,6 +63,39 @@ typedef struct TimeDisplayInfo{
     int minutes;
     int seconds;
 } TimeDisplayInfo;
+
+// ProgramState is malloc'ed
+ProgramState* load_program_state() {
+    ProgramState* program_state = malloc(sizeof(ProgramState));
+
+    if (!program_state) {
+        Error("Failed to load program state\n");
+        return NULL;
+    }
+
+    // Set top level tree
+    program_state->tree = load_earth_moon_system();
+
+    // Default the program to the root of the tree
+    program_state->focused_node = program_state->tree;
+
+    PhysicsTimeClock* clock = malloc(sizeof(PhysicsTimeClock));
+    clock->tick_interval_seconds = 86400;
+    clock->mode = Elapsing;
+    clock->scale = 10000.0;
+    clock->delta_seconds = 0.0;
+    clock->clock_seconds = 0.0;
+
+    if (!clock) {
+        Error("Failed to malloc physics time clock\n");
+        return NULL;
+    }
+
+    program_state->clock = clock;
+    program_state->sibling_index = 0;
+
+    return program_state;
+}
 
 TimeDisplayInfo get_time_info(double total_seconds) {
     int years = 0;
@@ -128,7 +170,7 @@ Color interpolate_color(Color color1, Color color2, float t) {
 }
 
 
-void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera, DVector3 center) {
+void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, Camera3D camera, DVector3 center) {
     if (orbital_lines == NULL) {
         return;
     }
@@ -169,11 +211,11 @@ void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, PhysicsTime
     }
 }
 
-void draw_orbital_features(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera, DVector3 center) {
+void draw_orbital_features(OrbitalTreeNode* node, PhysicsTimeClock* clock, Camera3D camera, DVector3 center) {
     float max_distance = 5000.0;
     float camera_to_moon_distance = Vector3Length((Vector3){camera.position.x-node->physical_state.r.x,camera.position.y-node->physical_state.r.y,camera.position.z-node->physical_state.r.z});
     float distance_scale_factor = max_distance/camera_to_moon_distance;
-    float time_scale_factor = sin(clock.clock_seconds*1.5)/4.0 + 1;
+    float time_scale_factor = sin(clock->clock_seconds*1.5)/4.0 + 1;
     DVector3 body_pos_world = vector_from_physical_to_world(DVector3Add(node->physical_state.r,center));
 
     float scale_factor = distance_scale_factor * time_scale_factor;
@@ -253,6 +295,14 @@ void draw_orbital_features(OrbitalTreeNode* node, PhysicsTimeClock clock, Camera
     }
 }
 
+void draw_element_str(char* format_text, char* value, int x, int y, Color color) {
+    char buffer[50];  // Buffer for the formatted string
+            // Format the float as a string
+    snprintf(buffer, sizeof(buffer), format_text, value);
+
+    DrawText(buffer,x,y,2,color);
+}
+
 void draw_element(char* format_text, double value, int x, int y, Color color) {
     char buffer[50];  // Buffer for the formatted string
             // Format the float as a string
@@ -284,13 +334,13 @@ void draw_textual_orbital_elements(ClassicalOrbitalElements oe, int num_lines) {
     DrawText(buffer,left_padding,padding_between_rows * 7,2,PURPLE);
 }
 
-void draw_orbital_hierarchy(OrbitalTreeNode* tree, int depth, int width) {
+void draw_orbital_hierarchy(OrbitalTreeNode* focus, OrbitalTreeNode* tree, int depth, int width) {
     if (tree == NULL) {
         return;
     }
 
-    int vertical_padding = 15;
-    int horizontal_padding = 10;
+    int vertical_padding = 150;
+    int horizontal_padding = 30;
 
     int horizontal_indentation_amount = 10;
     int vertical_indentation_amount = 10;
@@ -298,18 +348,23 @@ void draw_orbital_hierarchy(OrbitalTreeNode* tree, int depth, int width) {
     int vertical_offset = depth * vertical_indentation_amount + vertical_padding;
     int horizontal_offset = width * horizontal_indentation_amount + horizontal_padding;
 
-    DrawText(tree->body_name,horizontal_offset,vertical_offset,10,LIME);
+    if (tree == focus) {
+        DrawText("->  ",horizontal_offset-10,vertical_offset,10,BLUE);
+        DrawText(tree->body_name,horizontal_offset,vertical_offset,10,BLUE);
+    } else {
+        DrawText(tree->body_name,horizontal_offset,vertical_offset,10,LIME);
+    }
 
     for (int j = 0; tree->children != NULL && j < darray_length(tree->children); j++) {
         depth++;
         OrbitalTreeNode** child = (OrbitalTreeNode**)darray_get(tree->children,j);
 
-        draw_orbital_hierarchy(*child, depth+1, width+1);
+        draw_orbital_hierarchy(focus,*child, depth+1, width+1);
     }
 }
 
-void draw_clock_info(PhysicsTimeClock clock) {
-    TimeDisplayInfo time_info = get_time_info(clock.clock_seconds);
+void draw_clock_info(PhysicsTimeClock* clock) {
+    TimeDisplayInfo time_info = get_time_info(clock->clock_seconds);
 
     char buffer[100];
     snprintf(buffer, sizeof(buffer), "%d years %d weeks %d days %d hours %d minutes %d seconds", time_info.years, time_info.weeks, time_info.days, time_info.hours, time_info.minutes, time_info.seconds);
@@ -340,7 +395,7 @@ void draw_sphere_of_influence(OrbitalTreeNode* node, Camera3D camera, DVector3 c
 // 4. Draw orbital ring
 // 5. Draw orbital features
 // 6. Draw sphere of influence
-void draw_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock clock, Camera3D camera3d, bool should_draw_orbital_features, Matrix proj) {
+void draw_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock* clock, Camera3D camera3d, bool should_draw_orbital_features, Matrix proj) {
     bool is_root_node = node->parent == NULL;
 
     Info("Rendering %s\n",node->body_name);
@@ -354,7 +409,7 @@ void draw_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, P
     BeginMode3D(camera3d);
     rlSetMatrixProjection(proj);
     if (should_draw_orbital_features) {
-        draw_orbital_lines(node->orbital_lines, node, clock, camera3d,center);
+        draw_orbital_lines(node->orbital_lines, node, camera3d, center);
     }
     draw_sphere_of_influence(node,camera3d,center);
     draw_body(node,camera3d,center);
@@ -375,13 +430,8 @@ int main(void) {
     // Initialize Loggeruuu
     InitializeLogger(LOG_LEVEL,true);
 
-    PhysicsTimeClock clock = {
-        .tick_interval_seconds = 86400,
-        .mode = Elapsing,
-        .scale = 10000.0,
-        .delta_seconds = 0.0,
-        .clock_seconds = 0.0
-    };
+    // We need to free this, it was alloc'ed
+    ProgramState* program_state = load_program_state();
 
     //--------------------------------------------------------------------------------------
     InitWindow(screenWidth, screenHeight, "C Orbit");
@@ -401,8 +451,6 @@ int main(void) {
     float r = 100000.0;
     float theta = 0.0;
     float phi = PI;
-
-    OrbitalTreeNode* root = load_earth_moon_system();
 
     // Indicates if the camera
     bool is_click_to_drag_on = true;
@@ -426,7 +474,7 @@ int main(void) {
         delta = GetFrameTime();
 
         Info("is_click_to_drag_on = %d\n",is_click_to_drag_on);
-        if(IsKeyPressed(KEY_L)) {
+        if(IsKeyPressed(KEY_U)) {
             if (is_click_to_drag_on) {
                 EnableCursor();
             } else {
@@ -437,27 +485,102 @@ int main(void) {
 
         if(IsKeyDown(KEY_D) || IsKeyPressed(KEY_D)) {
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                clock.scale *= 1.1;
+                program_state->clock->scale *= 1.1;
             } else {
-                clock.scale *= 2;
+                program_state->clock->scale *= 2;
             }
         }
 
         if(IsKeyDown(KEY_A) || IsKeyPressed(KEY_A)) {
             if (IsKeyDown(KEY_LEFT_SHIFT)) {
-                clock.scale /= 1.5;
+                program_state->clock->scale /= 1.5;
             } else {
-                clock.scale /= 2;
+                program_state->clock->scale /= 2;
             }
         }
 
-        UpdatePhysicsClock(&clock, delta);
+        // If H is pressed, move to the left sibling of the current node
+        if(IsKeyPressed(KEY_H)) {
+            Error("H pressed.\n");
+            if (program_state->focused_node->parent != NULL) {
+                OrbitalTreeNode* parent = program_state->focused_node->parent;
+                // Grab left sibiling
+                if (program_state->sibling_index > 0) {
+                    program_state->sibling_index--;
+                    // Grab sibling at sibling index
+                    darray parents_children = parent->children;
+                    OrbitalTreeNode** left_sibiling = (OrbitalTreeNode**)darray_get(parents_children,program_state->sibling_index);
+                    program_state->focused_node = *left_sibiling;
+                }
+            }
+        }
+
+        // If K is pressed, move to the right sibling of the current node
+        if(IsKeyPressed(KEY_L)) {
+            Error("L pressed.\n");
+            if (program_state->focused_node->parent != NULL) {
+                OrbitalTreeNode* parent = program_state->focused_node->parent;
+                darray parents_children = parent->children;
+                // Grab right sibiling
+                if (program_state->sibling_index < darray_length(parents_children) - 1) {
+                    program_state->sibling_index++;
+                    // Grab sibling at sibling index
+                    OrbitalTreeNode** right_sibiling = (OrbitalTreeNode**)darray_get(parents_children,program_state->sibling_index);
+                    program_state->focused_node = *right_sibiling;
+                }
+            }
+        }
+
+        // Go down the orbital hierarchy to the first child of the currently focused node
+        if(IsKeyPressed(KEY_J)) {
+            Error("J pressed.\n");
+            bool has_children = program_state->focused_node->children != NULL && darray_length(program_state->focused_node->children) > 0;
+            if (has_children) {
+                OrbitalTreeNode** first_child = (OrbitalTreeNode**)darray_get(program_state->focused_node->children,0);
+                program_state->focused_node = *first_child;
+            }
+        }
+
+        // Go up the orbital hierarchy to the parent of the currently focused node (if applicable)
+        if(IsKeyPressed(KEY_K)) {
+            Error("K pressed.\n");
+            if (program_state->focused_node->parent != NULL) {
+                program_state->focused_node = program_state->focused_node->parent;
+            }
+        }
+
+        // Apply prograde force
+        if (IsKeyDown(KEY_RIGHT) || IsKeyPressed(KEY_RIGHT)) {
+            DVector3 forward = DVector3Normalize(program_state->focused_node->physical_state.v);
+            forward = DVector3Scale(forward,0.01);
+            program_state->focused_node->physical_state = apply_force_to(program_state->focused_node->physical_state,forward,30.0);
+        }
+        // Apply retrograde force
+        if (IsKeyDown(KEY_LEFT) || IsKeyPressed(KEY_LEFT)) {
+            DVector3 backward = DVector3Normalize(program_state->focused_node->physical_state.v);
+            backward = DVector3Scale(backward,-0.01);
+            program_state->focused_node->physical_state = apply_force_to(program_state->focused_node->physical_state,backward,30.0);
+        }
+        // Apply normal force
+        if (IsKeyDown(KEY_UP) || IsKeyPressed(KEY_UP)) {
+            DVector3 up = DVector3Normalize(DVector3CrossProduct(program_state->focused_node->physical_state.r, program_state->focused_node->physical_state.v));
+            up = DVector3Scale(up,0.01);
+            program_state->focused_node->physical_state = apply_force_to(program_state->focused_node->physical_state,up,300.0);
+        }
+        // Apply anti-normal force
+        if (IsKeyDown(KEY_DOWN) || IsKeyPressed(KEY_DOWN)) {
+            DVector3 down = DVector3Normalize(DVector3CrossProduct(program_state->focused_node->physical_state.r, program_state->focused_node->physical_state.v));
+            down = DVector3Scale(down,-0.01);
+            program_state->focused_node->physical_state = apply_force_to(program_state->focused_node->physical_state,down,300.0);
+        }
+
+        UpdatePhysicsClock(program_state->clock, delta);
 
         Info("Updating orbital node...\n");
-        restructure_orbital_tree_recursive(root,root);
-        update_orbital_tree_recursive(root,root,clock);
+        restructure_orbital_tree_recursive(program_state->tree,program_state->tree);
+        update_orbital_tree_recursive(program_state->tree,program_state->tree,program_state->clock);
         darray list = darray_init(10,sizeof(OrbitalTreeNode**));
-        darray bodies = dfs_orbital_tree_nodes(root, list);
+        darray bodies = dfs_orbital_tree_nodes(program_state->tree, list);
 
         for (int i = 0; darray_length(bodies) > 0 && i < darray_length(bodies);i++) {
             OrbitalTreeNode** child = (OrbitalTreeNode**)darray_get(bodies,i);
@@ -471,13 +594,29 @@ int main(void) {
         // Draw
         //----------------------------------------------------------------------------------
         BeginDrawing();
+            if (program_state != NULL && program_state->focused_node != NULL) {
+                int base_len = 14;
+                base_len += strlen(program_state->focused_node->body_name);
+                char buffer[base_len];
+                sprintf(buffer, "Focused node = %s", program_state->focused_node->body_name);
+                draw_element_str(buffer, program_state->focused_node->body_name, screenWidth/2-MeasureText(buffer, 10)/2, 20, BLUE);
+            }
 
             ClearBackground(BLACK);
 
-            spherical_camera_system(&r, &theta, &phi, &camera,is_click_to_drag_on);
+            PhysicalState focus_rv = global_physical_state(program_state->tree, program_state->focused_node);
 
-            draw_orbital_tree_recursive(root,root,clock,camera,should_draw_orbital_features,matProj);
-            draw_orbital_hierarchy(root, 0, 0);
+            DVector3 world_r = vector_from_physical_to_world(focus_rv.r);
+
+            camera.target = TF(world_r);
+
+            spherical_camera_system(world_r, &r, &theta, &phi, &camera,is_click_to_drag_on);
+
+            draw_orbital_tree_recursive(program_state->tree,program_state->tree,program_state->clock,camera,should_draw_orbital_features,matProj);
+            draw_orbital_hierarchy(program_state->focused_node,program_state->tree, 0, 0);
+            if (program_state->focused_node->parent != NULL) {
+                draw_textual_orbital_elements(program_state->focused_node->orbital_elements, darray_length(program_state->focused_node->orbital_lines));
+            }
             BeginMode3D(camera);
                 rlSetMatrixProjection(matProj);
 

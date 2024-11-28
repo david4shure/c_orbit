@@ -47,7 +47,7 @@ OrbitalTreeNode* load_earth_moon_system();
 darray dfs_orbital_tree_nodes(OrbitalTreeNode* n, darray list);
 
 // Updates the state of our Orbital Tree recursively
-void update_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock clock);
+void update_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock* clock);
 
 // Post order traversal of orbital tree to find the current SOI for a given node
 OrbitalTreeNode* get_sphere_of_influence_for_node(darray bodies, OrbitalTreeNode* root, OrbitalTreeNode* node);
@@ -66,5 +66,7 @@ PhysicalState get_global_state_for_node(OrbitalTreeNode* root, OrbitalTreeNode* 
 
 // Gets a position in 3d space corresponding to the current nodes global position
 DVector3 get_offset_position_for_node(OrbitalTreeNode* root, OrbitalTreeNode* node);
+
+PhysicalState global_physical_state(OrbitalTreeNode* root, OrbitalTreeNode* node);
 
 #endif

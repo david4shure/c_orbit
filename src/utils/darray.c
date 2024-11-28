@@ -8,7 +8,7 @@
 darray darray_create(darray arr, int capacity) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
-    header = RL_REALLOC(header,sizeof(darray_header) + (header->stride * capacity));
+    header = realloc(header,sizeof(darray_header) + (header->stride * capacity));
 
     if (!header) return NULL;  // Check for realloc failure
 
@@ -20,7 +20,7 @@ darray darray_create(darray arr, int capacity) {
 // Given capacity and size, gives us pointer to the void* array
 darray darray_init(int capacity, int stride) {
     // Malloc 32 bits cap, 32 bits size, 32 bits stride + 5 * stride bytes for array
-    void* ptr = RL_MALLOC(sizeof(darray_header) + stride * capacity);
+    void* ptr = malloc(sizeof(darray_header) + stride * capacity);
 
     darray_header* header = (darray_header*) ptr;
 
@@ -70,7 +70,7 @@ darray darray_insert(darray arr, void* item, int index) {
     }
 
     if (index > header->size-1) {
-        // need to RL_REALLOCate
+        // need to REALLOCate
         Warn("Inserted beyond bounds\n");
         return NULL;
     }
@@ -185,7 +185,7 @@ void darray_free(darray arr) {
 
     Debug("free(%p)\n",arr);
 
-    RL_FREE(header);
+    free(header);
 }
 
 // Insert element to array at index
