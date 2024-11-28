@@ -14,9 +14,10 @@
     - [See here](https://github.com/david4shure/c_orbit/blob/master/src/physics/orbital_lines.c)
 - Sphere of Influence Sphere Rendered
 - Fully generalized patched conics
+- Camera functions to traverse orbital tree (JKHL, basically Vim controls)
+
 
 # Upcoming features
 - Full orbital propagation using numerical integration
     - 2 Body trajectories, to the moon and back for example.
 - Load orbital data from simple text files which define arbitrary hierarchies of bodies and their orbital elements
-    - Camera functions to traverse this hierarchy
