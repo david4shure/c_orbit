@@ -33,6 +33,7 @@
 #include "tree.h"
 #include "utils/darray.h"
 #include "utils/logger.h"
+#include "physics/propagation.h"
 
 #define LOG_LEVEL DEBUG
 
@@ -546,6 +547,31 @@ int main(void) {
             if (program_state->focused_node->parent != NULL) {
                 program_state->focused_node = program_state->focused_node->parent;
             }
+        }
+
+        // Apply prograde force
+        if (IsKeyDown(KEY_RIGHT) || IsKeyPressed(KEY_RIGHT)) {
+            DVector3 forward = DVector3Normalize(program_state->focused_node->physical_state.v);
+            forward = DVector3Scale(forward,0.01);
+            program_state->focused_node->physical_state = apply_force_to(program_state->focused_node->physical_state,forward,30.0);
+        }
+        // Apply retrograde force
+        if (IsKeyDown(KEY_LEFT) || IsKeyPressed(KEY_LEFT)) {
+            DVector3 backward = DVector3Normalize(program_state->focused_node->physical_state.v);
+            backward = DVector3Scale(backward,-0.01);
+            program_state->focused_node->physical_state = apply_force_to(program_state->focused_node->physical_state,backward,30.0);
+        }
+        // Apply normal force
+        if (IsKeyDown(KEY_UP) || IsKeyPressed(KEY_UP)) {
+            DVector3 up = DVector3Normalize(DVector3CrossProduct(program_state->focused_node->physical_state.r, program_state->focused_node->physical_state.v));
+            up = DVector3Scale(up,0.01);
+            program_state->focused_node->physical_state = apply_force_to(program_state->focused_node->physical_state,up,300.0);
+        }
+        // Apply anti-normal force
+        if (IsKeyDown(KEY_DOWN) || IsKeyPressed(KEY_DOWN)) {
+            DVector3 down = DVector3Normalize(DVector3CrossProduct(program_state->focused_node->physical_state.r, program_state->focused_node->physical_state.v));
+            down = DVector3Scale(down,-0.01);
+            program_state->focused_node->physical_state = apply_force_to(program_state->focused_node->physical_state,down,300.0);
         }
 
         UpdatePhysicsClock(program_state->clock, delta);

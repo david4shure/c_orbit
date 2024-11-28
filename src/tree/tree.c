@@ -66,6 +66,7 @@ OrbitalTreeNode* load_earth_moon_system() {
     PhysicalState satellite_physical_state = (PhysicalState){
         .r = (DVector3){-0.4855179399127587E+05,0.1322604944038965E+04,0.0063540351362642E+04},
         .v = (DVector3){2.33646009855804641E-01,-2.6678650138048399E-01,-0.117381215592590E-02},
+        .mass = satellite_physical_parameters.mass,
     };
 
     OrbitalTreeNode* satellite = malloc(sizeof(OrbitalTreeNode));
