@@ -316,8 +316,6 @@ void draw_textual_orbital_elements(ClassicalOrbitalElements oe, int num_lines) {
     int padding_between_rows = 13;
     Color text_color = RED;
 
-    Debug("LEN LINES %d\n",num_lines);
-
     draw_element("e = %.3f", oe.eccentricity, left_padding, padding_between_rows, text_color);
     draw_element("a = %.3f", oe.semimajor_axis, left_padding, padding_between_rows * 2, text_color);
     draw_element("true anomaly = %.3f°", oe.true_anomaly * RAD2DEG, left_padding, padding_between_rows * 3, text_color);
@@ -380,7 +378,6 @@ void draw_body(OrbitalTreeNode* node, Camera3D camera, DVector3 center) {
 void draw_sphere_of_influence(OrbitalTreeNode* node, Camera3D camera, DVector3 center) {
     Vector3 position = TF(vector_from_physical_to_world(DVector3Add(center, node->physical_state.r)));
     if (node->draw_sphere_of_influence) {
-        Debug("drawing sphere of influence for %s\n",node->body_name);
         DrawSphereWires(position,node->physical_params.sphere_of_influence * KM_TO_RENDER_UNITS,10,10,(Color){.r=255, .b=182, .g=193,.a=50});
     }
 }
@@ -397,8 +394,6 @@ void draw_sphere_of_influence(OrbitalTreeNode* node, Camera3D camera, DVector3 c
 // 6. Draw sphere of influence
 void draw_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock* clock, Camera3D camera3d, bool should_draw_orbital_features, Matrix proj) {
     bool is_root_node = node->parent == NULL;
-
-    Info("Rendering %s\n",node->body_name);
 
     DVector3 center = get_offset_position_for_node(root,node);
 
@@ -427,7 +422,7 @@ void draw_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, P
 // Program main entry point
 //------------------------------------------------------------------------------------
 int main(void) {
-    // Initialize Loggeruuu
+    // Initialize Logger
     InitializeLogger(LOG_LEVEL,true);
 
     // We need to free this, it was alloc'ed
@@ -473,7 +468,6 @@ int main(void) {
         time = GetTime();
         delta = GetFrameTime();
 
-        Info("is_click_to_drag_on = %d\n",is_click_to_drag_on);
         if(IsKeyPressed(KEY_U)) {
             if (is_click_to_drag_on) {
                 EnableCursor();
@@ -576,7 +570,6 @@ int main(void) {
 
         UpdatePhysicsClock(program_state->clock, delta);
 
-        Info("Updating orbital node...\n");
         restructure_orbital_tree_recursive(program_state->tree,program_state->tree);
         update_orbital_tree_recursive(program_state->tree,program_state->tree,program_state->clock);
         darray list = darray_init(10,sizeof(OrbitalTreeNode**));
@@ -584,7 +577,6 @@ int main(void) {
 
         for (int i = 0; darray_length(bodies) > 0 && i < darray_length(bodies);i++) {
             OrbitalTreeNode** child = (OrbitalTreeNode**)darray_get(bodies,i);
-            Log("i = %d, body= %s\n",i,(*child)->body_name);
         }
 
         if(IsKeyPressed(KEY_V)) {
@@ -625,8 +617,6 @@ int main(void) {
                     DrawLine3D((Vector3){0,0,0},TF(vector_from_physical_to_world((DVector3){0,EARTH_RADIUS_KM*10,0})),GREEN);
                     DrawLine3D((Vector3){0,0,0},TF(vector_from_physical_to_world((DVector3){0,0,EARTH_RADIUS_KM*10})),BLUE);
                 }
-
-                Info("Drawing orbital node...\n");
 
             EndMode3D();
 

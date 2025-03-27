@@ -156,11 +156,7 @@ double clampf(double x, double min, double max) {
 }
 
 double calculate_sphere_of_influence_r(double a, double mass_of_parent, double mass_of_grandparent) {
-    Debug("a=%.4f\n",a);
-    Debug("parent_mass=%.4f\n",mass_of_parent);
-    Debug("grandparent_mass=%.4f\n",mass_of_grandparent);
     double soi = a * powf(mass_of_parent/(3.0*mass_of_grandparent),1.0/3.0);
-    Debug("soi = %.4f\n",soi);
     return soi;
 }
 
@@ -379,12 +375,6 @@ PhysicalState classical_elements_to_rv(ClassicalOrbitalElements elems,double gra
         0.0
     };
 
-    // Log perifocal coordinates
-    Debug("Perifocal Position: (%.10f, %.10f, %.10f)\n",
-          r_perifocal.x, r_perifocal.y, r_perifocal.z);
-    Debug("Perifocal Velocity: (%.10f, %.10f, %.10f)\n",
-          v_perifocal.x, v_perifocal.y, v_perifocal.z);
-
     // Transform perifocal to inertial coordinates
     DVector3 r_inertial = perifocal_coords_to_inertial_coords(
         r_perifocal,
@@ -399,12 +389,6 @@ PhysicalState classical_elements_to_rv(ClassicalOrbitalElements elems,double gra
         elems.arg_of_periapsis,
         elems.inclination
     );
-
-    // Log inertial coordinates
-    Debug("Inertial Position: (%.10f, %.10f, %.10f)\n",
-          r_inertial.x, r_inertial.y, r_inertial.z);
-    Debug("Inertial Velocity: (%.10f, %.10f, %.10f)\n",
-          v_inertial.x, v_inertial.y, v_inertial.z);
 
     // Return the physical state
     return (PhysicalState){

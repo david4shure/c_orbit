@@ -26,8 +26,6 @@ double delta_t_from_velocity(double velocityMagnitude, double scalingFactor) {
 // It should be freed accordingly
 darray compute_orbital_lines(PhysicalState rv, double grav_param, float t, float max_render_distance) {
     ClassicalOrbitalElements oe = rv_to_classical_elements(rv,grav_param);
-    print_orbital_elements("lines lol", oe);
-    Debug("e=%.5f\n",oe.eccentricity);
     if (oe.eccentricity < 1.0) { // Ellipse
         return compute_orbital_lines_ellipse(oe,rv);
     } else { // Parabolas / Hyperbolas
@@ -90,10 +88,6 @@ darray compute_orbital_lines_non_ellipse(ClassicalOrbitalElements oe, PhysicalSt
 }
 
 darray compute_orbital_lines_ellipse(ClassicalOrbitalElements oe, PhysicalState rv) {
-    Info("Starting propagate_orbit_ellipse: ecc=%.6f, true_anomaly=%.2f", 
-         oe.eccentricity, oe.true_anomaly * 180.0 / M_PI);
-    Info("R = (%.5f,%.5f,%.5f), V = (%.5f,%.5f,%.5f)\n",rv.r.x,rv.r.y,rv.r.z,rv.v.x,rv.v.y,rv.v.z);
-
     // Loop through true anomaly by step size
     darray arr = darray_init(1850, sizeof(PointBundle));
 
@@ -134,7 +128,6 @@ darray compute_orbital_lines_ellipse(ClassicalOrbitalElements oe, PhysicalState 
         // Linear interpolation between them based on eccentricity :)
         double min = min_elliptical + (1-oe.eccentricity) * (min_circular - min_elliptical);
         double max = max_circular + (1-oe.eccentricity) * (max_circular - max_elliptical);
-        /* Debug("factor=%.5f\n",(r-r_p)/(r_a-r_p)); */
 
         // Linear interpolate between max/min from 0..1 fraction determined
         // where 0 is distance at periapsis, and 1 is distance at apoapsis

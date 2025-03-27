@@ -129,19 +129,12 @@ darray dfs_orbital_tree_nodes(OrbitalTreeNode* tree, darray list) {
     // Store a pointer to a pointer to a OrbitalTreeNode
     // REASON: Darray copies the underlying data into its memory
     // segment that we pass in, we want a list of pointers.
-    Warn("traversing %s\n",tree->body_name);
-    Debug("tree = %p\n",tree);
 
-    Debug("pushing to array\n");
     list = darray_push(list,&tree);
 
     bool has_children = tree->children != NULL && darray_length(tree->children) > 0;
 
-    Debug("has children = %d\n",has_children);
-
     if (has_children) {
-        Debug("iterating over children of %s\n",tree->body_name);
-        Debug("len(children) = %d\n",darray_length(tree->children));
         for (int i = 0; i < darray_length(tree->children); i++) {
             OrbitalTreeNode** child = (OrbitalTreeNode**)darray_get(tree->children,i);
             list = dfs_orbital_tree_nodes(*child,list);
@@ -173,8 +166,6 @@ OrbitalTreeNode* get_sphere_of_influence_for_node(darray bodies, OrbitalTreeNode
         for (int j = 0; j < darray_length(bodies); j++) {
             OrbitalTreeNode** other_node = (OrbitalTreeNode**)darray_get(bodies,j);
 
-            Debug("Checking if %s is in %s's soi\n",node->body_name,(*other_node)->body_name);
-
             if (node != *other_node) {
                 DVector3 this_center = get_offset_position_for_node(root,node);
                 DVector3 this_position = DVector3Add(this_center,node->physical_state.r);
@@ -187,13 +178,9 @@ OrbitalTreeNode* get_sphere_of_influence_for_node(darray bodies, OrbitalTreeNode
                 // are we in the soi AND does the compared node indicate that we are using a sphere of influence?
                 bool is_in_soi = distance_between_nodes < (*other_node)->physical_params.sphere_of_influence;
 
-                Debug("distance between %s and %s = %.3f, soi = %.3f, in_soi?=%d\n",node->body_name,(*other_node)->body_name, distance_between_nodes,(*other_node)->physical_params.sphere_of_influence,is_in_soi);
-                Debug("is true=%d\n",is_in_soi);
-
                 // distance_between_nodes serves as a tiebreaker in the case
                 // where we are in two SOIs
                 if (is_in_soi == true && distance_between_nodes < closest_distance) {
-                    Debug("trying to assign for %s and other %s\n",node->body_name,(*other_node)->body_name);
                     soi_node = *other_node;
                     closest_distance = distance_between_nodes;
                 }
@@ -201,8 +188,6 @@ OrbitalTreeNode* get_sphere_of_influence_for_node(darray bodies, OrbitalTreeNode
         }
     }
     
-    Debug("returning ... %s for %s\n",soi_node->body_name, node->body_name);
-
     // Did something change?
     if(node->parent != soi_node) {
         // Convert coordinates to new body?
@@ -238,13 +223,10 @@ void restructure_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* 
 
     for (int j = 0; j < darray_length(bodies); j++) {
         OrbitalTreeNode** node = (OrbitalTreeNode**)darray_get(bodies,j);
-        Warn("Computing SOI for.. %s\n",(*node)->body_name);
         OrbitalTreeNode* soi = get_sphere_of_influence_for_node(bodies, root, *node);
-        Warn("SOI = %p\n",soi);
 
         // Nothing to do, root node
         if(soi == NULL) {
-            Debug("Skipping root node...\n");
             continue;
         }
 
@@ -267,6 +249,8 @@ void restructure_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* 
             continue;
         }
 
+        Warn("%s is now in %s's sphere of influence... updating tree.",(*node)->body_name, soi->body_name);
+
         // Update nodes current position/velocity based on parents frame
         PhysicalState global_offset = get_global_state_for_node(root, *node);
 
@@ -277,7 +261,6 @@ void restructure_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* 
         global_state.r = DVector3Add(global_offset.r,(*node)->physical_state.r);
         global_state.v = DVector3Add(global_offset.v,(*node)->physical_state.v);
 
-        Debug("global state of node\n");
         print_physical_state(global_state);
 
         // Now compute global offset of new parent 
@@ -290,7 +273,6 @@ void restructure_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* 
         new_parent_global_state.r = DVector3Add(new_parent_global_offset.r,soi->physical_state.r);
         new_parent_global_state.v = DVector3Add(new_parent_global_offset.v,soi->physical_state.v);
 
-        Debug("new parent global state of node\n");
         print_physical_state(new_parent_global_state);
 
         // Now assign the new position of the current node as the 
@@ -298,7 +280,6 @@ void restructure_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* 
         (*node)->physical_state.r = DVector3Subtract(global_state.r,new_parent_global_state.r);
         (*node)->physical_state.v = DVector3Subtract(global_state.v,new_parent_global_state.v);
 
-        Debug("new position relative to parent\n");
         print_physical_state((*node)->physical_state);
 
         // Pop the child from its old parents array
@@ -309,24 +290,18 @@ void restructure_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* 
 
         // Register the soi as the current node's parent
         (*node)->parent = soi;
-
-
-        Info("SOI of %s is %s\n",(*node)->body_name,soi->body_name);
-
     }
 
     darray_free(bodies);
 }
 
 bool subtree_has_node(OrbitalTreeNode* tree, OrbitalTreeNode* node) {
-    Debug("does %s have %s ?\n",tree->body_name,node->body_name);
     // Handle edge cases
     if (tree == NULL || node == NULL) {
         return false;
     }
 
     // Base case: we found the node
-    Debug("%s == %s = %d\n",tree->body_name,node->body_name,tree==node);
     if (tree == node) {
         return true;
     }
@@ -378,7 +353,6 @@ PhysicalState get_global_state_for_node(OrbitalTreeNode* root, OrbitalTreeNode* 
 
     for (int i = 0; i < darray_length(path); i++) {
         OrbitalTreeNode** child = (OrbitalTreeNode**)darray_get(path,i);
-        Debug("path[%d]=%s, (%.2f,%.2f,%.2f), (ptr=%p)\n",i,(*child)->body_name,(*child)->physical_state.r.x,(*child)->physical_state.r.y,(*child)->physical_state.r.z,(*child));
     }
 
     PhysicalState state = root->physical_state;

@@ -65,13 +65,11 @@ darray darray_insert(darray arr, void* item, int index) {
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (index > header->size) {
-        Warn("Insert index out of bounds");
         return NULL;
     }
 
     if (index > header->size-1) {
         // need to REALLOCate
-        Warn("Inserted beyond bounds\n");
         return NULL;
     }
 
@@ -93,7 +91,6 @@ darray darray_pop(darray arr) {
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (header->size == 0) {
-        Warn("Tried to pop from empty arr");
         return arr;
     }
 
@@ -116,12 +113,10 @@ darray darray_pop_at(darray arr, int index) {
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (header->size == 0) {
-        Warn("Tried to pop from empty arr\n");
         return arr;
     }
 
     if (index > header->size - 1) {
-        Warn("Tried to pop at index > size-1\n");
         return arr;
     }
 
@@ -149,12 +144,10 @@ darray darray_insert_at(darray arr, void* item, int index) {
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (index < 0) {
-        Warn("Tried to insert out of bound\n");
         return arr;
     }
 
     if (header->size + 1 >= header->capacity) {
-        Debug("Reallocating new array...\n"); // Increase capacity
         header->capacity *= DARRAY_GROWTH_FACTOR;
         // Realloc new array + header
         arr = darray_create(arr,header->capacity);
@@ -183,8 +176,6 @@ void darray_free(darray arr) {
     // Parse out darrray_header from ptr
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
-    Debug("free(%p)\n",arr);
-
     free(header);
 }
 
@@ -194,7 +185,6 @@ void* darray_get(darray arr, int index) {
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (index > header->size-1 || index < 0) {
-        Warn("Getting beyond bounds\n");
         return NULL;
     }
 
@@ -209,7 +199,6 @@ void darray_set(darray arr, void* item, int index) {
     darray_header* header = (darray_header*)((uint8_t*)arr - sizeof(darray_header));
 
     if (index > header->size-1 || index < 0) {
-        Debug("Setting beyond bounds\n");
         return;
     }
 

@@ -21,9 +21,6 @@ void spherical_camera_system_locked(DVector3 offset, float *r, float *theta, flo
     Vector2 mousePositionDelta = GetMouseDelta();
     float mouseWheelMove = GetMouseWheelMove();
 
-    Debug("mousePositionDelta=(%.2f,%.2f), mouseWheelMove=%.2f\n",mousePositionDelta.x,mousePositionDelta.y,mouseWheelMove);
-    Debug("Before r=%.2f, theta = %.2f, phi = %.2f\n",*r,*theta,*phi);
-
     *r -= mouseWheelMove * 0.001;
 
     float r_delta = mouseWheelMove * SCROLL_FACTOR;
@@ -34,10 +31,6 @@ void spherical_camera_system_locked(DVector3 offset, float *r, float *theta, flo
     *phi -= scale * mousePositionDelta.y*0.005;
 
     *phi = clampf(*phi,PI/2 + CAMERA_ETA,3 * PI/2-CAMERA_ETA);
-
-    Debug("After r=%.2f, theta = %.2f, phi = %.2f\n",*r,*theta,*phi);
-
-    Debug("offset = (%.2f,%.2f,%.2f)\n",offset.x,offset.y,offset.z);
 
     camera->position.x = offset.x + *r*sin(*theta)*cos(*phi);
     camera->position.y = offset.y + *r*sin(*phi);
@@ -52,17 +45,12 @@ void spherical_camera_system_click_to_drag(DVector3 offset, float *r, float *the
     Vector2 mousePositionDelta = GetMouseDelta();
     float mouseWheelMove = GetMouseWheelMove();
 
-    Debug("mousePositionDelta=(%.2f,%.2f), mouseWheelMove=%.2f\n",mousePositionDelta.x,mousePositionDelta.y,mouseWheelMove);
-    Debug("Before r=%.2f, theta = %.2f, phi = %.2f\n",*r,*theta,*phi);
-
     *r -= mouseWheelMove * 0.001;
 
     float r_delta = mouseWheelMove * SCROLL_FACTOR;
     
     *r -= scale * r_delta * *r;
     
-    Debug("offset = (%.2f,%.2f,%.2f)\n",offset.x,offset.y,offset.z);
-
     camera->position.x = offset.x + *r*sin(*theta)*cos(*phi);
     camera->position.y = offset.y + *r*sin(*phi);
     camera->position.z = offset.z + *r*cos(*theta)*cos(*phi);
@@ -76,9 +64,6 @@ void spherical_camera_system_click_to_drag(DVector3 offset, float *r, float *the
 
     *phi = clampf(*phi,PI/2 + CAMERA_ETA,3 * PI/2-CAMERA_ETA);
 
-    Debug("After r=%.2f, theta = %.2f, phi = %.2f\n",*r,*theta,*phi);
-
-    Debug("offset = (%.2f,%.2f,%.2f)\n",offset.x,offset.y,offset.z);
     camera->position.x = offset.x + *r*sin(*theta)*cos(*phi);
     camera->position.y = offset.y + *r*sin(*phi);
     camera->position.z = offset.z + *r*cos(*theta)*cos(*phi);
@@ -88,7 +73,6 @@ void spherical_camera_system_click_to_drag(DVector3 offset, float *r, float *the
 }
 
 void spherical_camera_system(DVector3 offset, float *r, float *theta, float *phi, Camera3D *camera, bool is_locked) {
-    Debug("R = %.3f\n",*r);
     // If the camera is locked process any inputs regardless
     if (is_locked) {
         spherical_camera_system_locked(offset, r,theta,phi,camera);
