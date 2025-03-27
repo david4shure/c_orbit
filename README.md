@@ -1,9 +1,9 @@
 # C Orbit is an orbital simulation written in C, using raylib
+![View the demo video with narration](https://img.youtube.com/vi/kRb1Rg4uK-U/0.jpg)](https://www.youtube.com/watch?v=kRb1Rg4uK-U)
 
 # Demo
 <video width="640" height="360" src="https://github.com/user-attachments/assets/7dc03f54-1fc5-4ace-9054-d87ab199ae50" controls></video>
 
-[![View the demo video with narration](https://img.youtube.com/vi/kRb1Rg4uK-U/0.jpg)](https://www.youtube.com/watch?v=kRb1Rg4uK-U)
 
 # Features
 - Full keplerian orbital simulation
