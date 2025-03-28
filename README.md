@@ -2,7 +2,7 @@
 
 # Narrated Demo
 
-[![View the demo video with narration](https://img.youtube.com/vi/kRb1Rg4uK-U/0.jpg)](https://www.youtube.com/watch?v=kRb1Rg4uK-U)
+[![View the demo video with narration](https://img.youtube.com/vi/9iFd_e9Pstg/0.jpg)](https://www.youtube.com/watch?v=9iFd_e9Pstg)
 
 # Video Demo
 
