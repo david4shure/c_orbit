@@ -1,13 +1,10 @@
 /*******************************************************************************************
 *
-*   raylib [core] example - 3d camera first person
+*   C Orbit
 *
-*   Example originally created with raylib 1.3, last time updated with raylib 1.3
+*   david4shure
 *
-*   Example licensed under an unmodified zlib/libpng license, which is an OSI-certified,
-*   BSD-like license that allows static linking with closed source software
-*
-*   Copyright (c) 2015-2024 Ramon Santamaria (@raysan5)
+*   MIT License, give me credit pls
 *
 ********************************************************************************************/
 
@@ -39,6 +36,8 @@
 
 const int screenWidth = 1500;
 const int screenHeight = 1000;
+
+static Font customFont;
 
 Vector3 TF(DVector3 vec) {
     return (Vector3){.x = (float)vec.x, .y = (float)vec.y, .z= (float)vec.z};
@@ -176,7 +175,7 @@ void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, Camera3D ca
     }
     PointBundle* prev_pos = NULL;
     PointBundle* current_pos = NULL;
-    
+
     float r_at_sphere_of_influence = node->parent->physical_params.sphere_of_influence;
     float r_at_soi_world_coords = r_at_sphere_of_influence * KM_TO_RENDER_UNITS;
 
@@ -203,7 +202,7 @@ void draw_orbital_lines(darray orbital_lines, OrbitalTreeNode* node, Camera3D ca
 
         prev_pos = current_pos;
     }
-    
+
     Color myyellow = (Color){ 253, 249, 0, 100};
 
     if (node->orbital_elements.eccentricity < 1.0) {
@@ -264,35 +263,76 @@ void draw_orbital_features(OrbitalTreeNode* node, PhysicsTimeClock* clock, Camer
     Vector2 positive_z_direction = GetWorldToScreen(TF(positive_z),camera);
 
     if (!is_object_behind_camera(camera.position, camera.target, TF(body_pos_world))) {
-        DrawText(node->body_name,(int)body.x - MeasureText(node->body_name,10)/2,(int)body.y - MeasureText(node->body_name, 10),10,GREEN);
-        DrawText(velocity_str,(int)body.x - MeasureText(velocity_str,10)/2,(int)body.y - MeasureText(velocity_str,10),10,GREEN);
-    }
-    if (!is_object_behind_camera(camera.position, camera.target, TF(periapsis_point))) {
-        DrawText("Pa",(int)periapsis_point_camera.x - MeasureText("Pa",10)/2,(int)periapsis_point_camera.y - MeasureText("Pa", 10),10,SKYBLUE);
-    }
-    if (!is_object_behind_camera(camera.position, camera.target, TF(apoapsis_point))) {
-        DrawText("Apo",(int)apoapsis_point_camera.x - MeasureText("Apo",10)/2,(int)apoapsis_point_camera.y - MeasureText("Apo", 10),10,DARKBLUE);
-    }
-    if (!is_object_behind_camera(camera.position, camera.target, TF(positive_x))) {
-        DrawText("+x",(int)positive_x_direction.x,(int)positive_x_direction.y,13,LIGHTGRAY);
-    }
-    if (!is_object_behind_camera(camera.position, camera.target, TF(positive_y))) {
-        DrawText("+y",(int)positive_y_direction.x,(int)positive_y_direction.y,13,LIGHTGRAY);
-    }
-    if (!is_object_behind_camera(camera.position, camera.target, TF(positive_z))) {
-        DrawText("+z",(int)positive_z_direction.x,(int)positive_z_direction.y,13,LIGHTGRAY);
+        // Measure text sizes
+        Vector2 bodyLabelSize = MeasureTextEx(customFont, node->body_name, 12, 0);
+        Vector2 velocityLabelSize = MeasureTextEx(customFont, velocity_str, 12, 0);
+
+        // Layout spacing
+        float labelSpacing = 4;       // spacing between labels
+        float verticalOffset = 20;    // how high to lift the whole label group above the body
+
+        // Compute label positions
+        Vector2 bodyLabelPos = {
+            body.x - bodyLabelSize.x / 2.0f,
+            body.y - bodyLabelSize.y - verticalOffset
+        };
+
+        Vector2 velocityLabelPos = {
+            body.x - velocityLabelSize.x / 2.0f,
+            bodyLabelPos.y - velocityLabelSize.y - labelSpacing
+        };
+
+        // Draw text labels
+        DrawTextEx(customFont, velocity_str, velocityLabelPos, 12, 0, GREEN);
+        DrawTextEx(customFont, node->body_name, bodyLabelPos, 12, 0, GREEN);
     }
 
-    if (node->orbital_elements.eccentricity >= 1.0) {
-        return;
+    if (!is_object_behind_camera(camera.position, camera.target, TF(periapsis_point))) {
+        DrawTextEx(customFont, "Pa",
+            (Vector2){
+                (int)periapsis_point_camera.x - MeasureTextEx(customFont, "Pa", 12, 0).x / 2.0f,
+                (int)periapsis_point_camera.y - MeasureTextEx(customFont, "Pa", 12, 0).y
+            }, 12, 0, SKYBLUE);
     }
+
+    if (!is_object_behind_camera(camera.position, camera.target, TF(apoapsis_point))) {
+        DrawTextEx(customFont, "Apo",
+            (Vector2){
+                (int)apoapsis_point_camera.x - MeasureTextEx(customFont, "Apo", 12, 0).x / 2.0f,
+                (int)apoapsis_point_camera.y - MeasureTextEx(customFont, "Apo", 12, 0).y
+            }, 12, 0, DARKBLUE);
+    }
+
+    if (!is_object_behind_camera(camera.position, camera.target, TF(positive_x))) {
+        DrawTextEx(customFont, "+x", (Vector2){(int)positive_x_direction.x, (int)positive_x_direction.y}, 12, 0, LIGHTGRAY);
+    }
+
+    if (!is_object_behind_camera(camera.position, camera.target, TF(positive_y))) {
+        DrawTextEx(customFont, "+y", (Vector2){(int)positive_y_direction.x, (int)positive_y_direction.y}, 12, 0, LIGHTGRAY);
+    }
+
+    if (!is_object_behind_camera(camera.position, camera.target, TF(positive_z))) {
+        DrawTextEx(customFont, "+z", (Vector2){(int)positive_z_direction.x, (int)positive_z_direction.y}, 12, 0, LIGHTGRAY);
+    }
+
+    if (node->orbital_elements.eccentricity >= 1.0) return;
 
     if (!is_object_behind_camera(camera.position, camera.target, TF(asc_node_point))) {
-        DrawText("Asc",(int)asc_point_camera.x - MeasureText("Asc",10)/2,(int)asc_point_camera.y,10,YELLOW);
+        DrawTextEx(customFont, "Asc",
+            (Vector2){
+                (int)asc_point_camera.x - MeasureTextEx(customFont, "Asc", 12, 0).x / 2.0f,
+                (int)asc_point_camera.y
+            }, 12, 0, YELLOW);
     }
+
     if (!is_object_behind_camera(camera.position, camera.target, TF(desc_node_point))) {
-        DrawText("Desc",(int)desc_point_camera.x - MeasureText("Desc",10)/2,(int)desc_point_camera.y,10,ORANGE);
+        DrawTextEx(customFont, "Desc",
+            (Vector2){
+                (int)desc_point_camera.x - MeasureTextEx(customFont, "Desc", 12, 0).x / 2.0f,
+                (int)desc_point_camera.y
+            }, 12, 0, ORANGE);
     }
+
 }
 
 void draw_element_str(char* format_text, char* value, int x, int y, Color color) {
@@ -300,7 +340,9 @@ void draw_element_str(char* format_text, char* value, int x, int y, Color color)
             // Format the float as a string
     snprintf(buffer, sizeof(buffer), format_text, value);
 
-    DrawText(buffer,x,y,2,color);
+    Vector2 pos = {x,y};
+
+    DrawTextEx(customFont,buffer,pos,15,0,color);
 }
 
 void draw_element(char* format_text, double value, int x, int y, Color color) {
@@ -308,28 +350,31 @@ void draw_element(char* format_text, double value, int x, int y, Color color) {
             // Format the float as a string
     snprintf(buffer, sizeof(buffer), format_text, value);
 
-    DrawText(buffer,x,y,2,color);
+    Vector2 pos = {x,y};
+
+    DrawTextEx(customFont,buffer,pos,15,0,color);
 }
 
 void draw_textual_orbital_elements(ClassicalOrbitalElements oe, int num_lines) {
     int left_padding = 15;
-    int padding_between_rows = 13;
+    int padding_between_rows = 25;
     Color text_color = RED;
 
     draw_element("e = %.3f", oe.eccentricity, left_padding, padding_between_rows, text_color);
     draw_element("a = %.3f", oe.semimajor_axis, left_padding, padding_between_rows * 2, text_color);
-    draw_element("true anomaly = %.3f°", oe.true_anomaly * RAD2DEG, left_padding, padding_between_rows * 3, text_color);
-    draw_element("argument of periapsis = %.3f°", oe.arg_of_periapsis * RAD2DEG, left_padding, padding_between_rows * 4, text_color);
-    draw_element("inclination = %.3f°", oe.inclination * RAD2DEG, left_padding, padding_between_rows * 5, text_color);
-    draw_element("longitude of the ascending node = %.3f°", oe.long_of_asc_node * RAD2DEG, left_padding, padding_between_rows * 6, text_color);
-    draw_element("number of lines = %.0f", (double)num_lines, screenWidth-140, padding_between_rows, GREEN);
+    draw_element("true anomaly = %.3f degrees", oe.true_anomaly * RAD2DEG, left_padding, padding_between_rows * 3, text_color);
+    draw_element("argument of periapsis = %.3f degrees", oe.arg_of_periapsis * RAD2DEG, left_padding, padding_between_rows * 4, text_color);
+    draw_element("inclination = %.3f degrees", oe.inclination * RAD2DEG, left_padding, padding_between_rows * 5, text_color);
+    draw_element("longitude of the ascending node = %.3f degrees", oe.long_of_asc_node * RAD2DEG, left_padding, padding_between_rows * 6, text_color);
+    draw_element("number of lines = %.0f", (double)num_lines, screenWidth-180, padding_between_rows, GREEN);
 
     TimeDisplayInfo time_info = get_time_info(oe.period);
 
     char buffer[100];
     snprintf(buffer, sizeof(buffer), "orbital period = %d years %d weeks %d days %d hours %d minutes %d seconds", time_info.years, time_info.weeks, time_info.days, time_info.hours, time_info.minutes, time_info.seconds);
+    Vector2 pos = {left_padding,padding_between_rows*7};
 
-    DrawText(buffer,left_padding,padding_between_rows * 7,2,PURPLE);
+    DrawTextEx(customFont, buffer,pos,15,0,PURPLE);
 }
 
 void draw_orbital_hierarchy(OrbitalTreeNode* focus, OrbitalTreeNode* tree, int depth, int width) {
@@ -337,7 +382,7 @@ void draw_orbital_hierarchy(OrbitalTreeNode* focus, OrbitalTreeNode* tree, int d
         return;
     }
 
-    int vertical_padding = 150;
+    int vertical_padding = GetScreenHeight() - 100;
     int horizontal_padding = 30;
 
     int horizontal_indentation_amount = 10;
@@ -347,10 +392,14 @@ void draw_orbital_hierarchy(OrbitalTreeNode* focus, OrbitalTreeNode* tree, int d
     int horizontal_offset = width * horizontal_indentation_amount + horizontal_padding;
 
     if (tree == focus) {
-        DrawText("->  ",horizontal_offset-10,vertical_offset,10,BLUE);
-        DrawText(tree->body_name,horizontal_offset,vertical_offset,10,BLUE);
+        Vector2 pos = {horizontal_offset-20,vertical_offset};
+        DrawTextEx(customFont,"->  ",pos,15,0,BLUE);
+        pos.x = horizontal_offset;
+        pos.y = vertical_offset;
+        DrawTextEx(customFont,tree->body_name,pos,15,0,BLUE);
     } else {
-        DrawText(tree->body_name,horizontal_offset,vertical_offset,10,LIME);
+        Vector2 pos = {horizontal_offset,vertical_offset};
+        DrawTextEx(customFont,tree->body_name,pos,15,0,LIME);
     }
 
     for (int j = 0; tree->children != NULL && j < darray_length(tree->children); j++) {
@@ -400,7 +449,7 @@ void draw_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, P
     if (!is_root_node && should_draw_orbital_features) {
         draw_orbital_features(node, clock, camera3d, center);
     }
-  
+
     BeginMode3D(camera3d);
     rlSetMatrixProjection(proj);
     if (should_draw_orbital_features) {
@@ -430,6 +479,12 @@ int main(void) {
 
     //--------------------------------------------------------------------------------------
     InitWindow(screenWidth, screenHeight, "C Orbit");
+
+    // Load the font
+    customFont = LoadFontEx("FiraCode-Bold.ttf", 32, 0, 0);
+
+    // Wait for font texture to be ready
+    SetTextureFilter(customFont.texture, TEXTURE_FILTER_BILINEAR);
 
     // Define the camera to look into our 3d world (position, target, up vector)
     Camera camera = { 0 };
