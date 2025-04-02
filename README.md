@@ -4,10 +4,6 @@
 
 [![View the demo video with narration](https://img.youtube.com/vi/9iFd_e9Pstg/0.jpg)](https://www.youtube.com/watch?v=9iFd_e9Pstg)
 
-# Video Demo
-
-<video width="640" height="360" src="https://github.com/user-attachments/assets/7dc03f54-1fc5-4ace-9054-d87ab199ae50" controls></video>
-
 ## Features
 
 - Full Keplerian orbital simulation
