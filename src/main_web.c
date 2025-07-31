@@ -734,13 +734,113 @@ void draw_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, P
 static ProgramState* program_state = NULL;
 static Font customFont;
 static Camera camera;
-static float r = 100000.0;
+static float r = 10000.0;  // Much closer default camera distance
 static float theta = 0.0;
 static float phi = PI;
 static bool is_click_to_drag_on = true;
 static Matrix matProj;
 static bool should_draw_orbital_features = true;
 static bool game_initialized = false;
+
+// Star field data
+#define NUM_STARS 2500
+static Vector3 stars[NUM_STARS];
+static Color star_colors[NUM_STARS];
+static bool stars_initialized = false;
+
+// Generate random stars on a sphere around the origin
+void generate_star_field(void) {
+    if (stars_initialized) return;
+    
+    SetRandomSeed(12345); // Fixed seed for consistent star field
+    float star_distance = 1000000.0f; // Very far away
+    
+    for (int i = 0; i < NUM_STARS; i++) {
+        // Generate uniform random point on unit sphere (avoiding pole bunching)
+        float theta = GetRandomValue(0, 360) * DEG2RAD;  // Azimuth: 0 to 2π
+        float u = GetRandomValue(0, 100) / 100.0f;       // Uniform 0 to 1
+        float phi = acosf(1.0f - 2.0f * u);              // Proper elevation distribution
+        
+        stars[i].x = star_distance * sinf(phi) * cosf(theta);
+        stars[i].y = star_distance * cosf(phi);
+        stars[i].z = star_distance * sinf(phi) * sinf(theta);
+        
+        // Generate star colors with much better brightness distribution
+        int brightness_type = GetRandomValue(0, 100);
+        int brightness;
+        
+        if (brightness_type < 10) {
+            // Very bright stars (10%)
+            brightness = GetRandomValue(240, 255);
+        } else if (brightness_type < 30) {
+            // Bright stars (20%)
+            brightness = GetRandomValue(200, 240);
+        } else if (brightness_type < 70) {
+            // Medium stars (40%)
+            brightness = GetRandomValue(160, 200);
+        } else {
+            // Dim stars (30%)
+            brightness = GetRandomValue(120, 160);
+        }
+        
+        int color_type = GetRandomValue(0, 100);
+        
+        if (color_type < 70) {
+            // White stars (most common)
+            star_colors[i] = (Color){brightness, brightness, brightness, 255};
+        } else if (color_type < 85) {
+            // Blue-white stars
+            star_colors[i] = (Color){brightness-20, brightness-10, brightness, 255};
+        } else if (color_type < 95) {
+            // Yellow-white stars
+            star_colors[i] = (Color){brightness, brightness, brightness-30, 255};
+        } else {
+            // Red stars
+            star_colors[i] = (Color){brightness, brightness-40, brightness-60, 255};
+        }
+    }
+    
+    stars_initialized = true;
+}
+
+// Draw the star field
+void draw_star_field(Camera3D camera) {
+    if (!stars_initialized) {
+        generate_star_field();
+    }
+    
+    // Stars are at infinite distance, so always draw all of them
+    // Only adjust size slightly based on zoom for visual comfort
+    float camera_distance = Vector3Length(camera.position);
+    int stars_to_draw = NUM_STARS;  // Always draw all stars
+    float star_size = 1200.0f;
+    
+    // Slight size adjustment for visual comfort only
+    if (camera_distance < 30000.0f) {
+        star_size = 1000.0f;  // Slightly smaller when close
+    } else if (camera_distance > 150000.0f) {
+        star_size = 1400.0f;  // Slightly larger when far
+    }
+    
+    // Draw stars as crosses for better visibility
+    for (int i = 0; i < stars_to_draw; i++) {
+        // Translate stars relative to camera position for infinite distance effect
+        Vector3 star_pos = {
+            stars[i].x + camera.position.x,
+            stars[i].y + camera.position.y,
+            stars[i].z + camera.position.z
+        };
+        
+        // Draw as crosses for much better visibility
+        Vector3 h1 = {star_pos.x - star_size, star_pos.y, star_pos.z};
+        Vector3 h2 = {star_pos.x + star_size, star_pos.y, star_pos.z};
+        Vector3 v1 = {star_pos.x, star_pos.y - star_size, star_pos.z};
+        Vector3 v2 = {star_pos.x, star_pos.y + star_size, star_pos.z};
+        
+        DrawLine3D(h1, h2, star_colors[i]);
+        DrawLine3D(v1, v2, star_colors[i]);
+    }
+}
 
 // Game loop callback function for Emscripten
 void game_loop(void) {
@@ -771,9 +871,9 @@ void game_loop(void) {
     // Handle input
     if(IsKeyPressed(KEY_U)) {
         if (is_click_to_drag_on) {
-            EnableCursor();
+            DisableCursor();  // Switch to free look mode (hide cursor)
         } else {
-            DisableCursor();
+            EnableCursor();   // Switch to click-to-drag mode (show cursor)
         }
         is_click_to_drag_on = !is_click_to_drag_on;
     }
@@ -890,6 +990,13 @@ void game_loop(void) {
         should_draw_orbital_features = !should_draw_orbital_features;
     }
 
+    // Reset camera to default position with R key
+    if(IsKeyPressed(KEY_R)) {
+        r = 10000.0;  // Much closer default distance
+        theta = 0.0;
+        phi = PI;
+    }
+
     // Draw
     BeginDrawing();
         if (program_state != NULL && program_state->focused_node != NULL && customFont.texture.id != 0) {
@@ -921,12 +1028,15 @@ void game_loop(void) {
             PhysicalState focus_rv = global_physical_state(program_state->tree, program_state->focused_node);
             DVector3 world_r = vector_from_physical_to_world(focus_rv.r);
             camera.target = TF(world_r);
-            spherical_camera_system(world_r, &r, &theta, &phi, &camera,is_click_to_drag_on);
+            spherical_camera_system(world_r, &r, &theta, &phi, &camera, !is_click_to_drag_on);
 
             draw_orbital_tree_recursive(program_state->tree,program_state->tree,program_state->clock,camera,should_draw_orbital_features,matProj);
         }
         BeginMode3D(camera);
             rlSetMatrixProjection(matProj);
+
+            // Draw star field in the background
+            draw_star_field(camera);
 
             if (should_draw_orbital_features) {
                 // Safety check for 3D drawing
@@ -1015,7 +1125,7 @@ int main(void) {
 
     matProj = MatrixPerspective(camera.fovy*DEG2RAD, ((double)GetScreenWidth()/(double)GetScreenHeight()), 0.1,10000000.0);
 
-    DisableCursor();                    // Limit cursor to relative movement inside the window
+    EnableCursor();                     // Start with cursor visible for click-to-drag mode
 
     SetTargetFPS(60);                   // Set our game to run at 60 frames-per-second
 

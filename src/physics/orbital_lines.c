@@ -22,16 +22,16 @@ double delta_t_from_velocity(double velocityMagnitude, double scalingFactor) {
 // NOTE: This function returns a dynamic array that is malloc'ed!!
 // It should be freed accordingly
 darray compute_orbital_lines(PhysicalState rv, double grav_param, float t, float max_render_distance) {
-    printf("DEBUG: compute_orbital_lines called with grav_param: %f, t: %f\n", grav_param, t);
-    printf("DEBUG: About to compute orbital elements\n");
+    Debug("compute_orbital_lines called with grav_param: %f, t: %f", grav_param, t);
+    Debug("About to compute orbital elements");
     ClassicalOrbitalElements oe = rv_to_classical_elements(rv,grav_param);
-    printf("DEBUG: Orbital elements computed, eccentricity: %f\n", oe.eccentricity);
+    Debug("Orbital elements computed, eccentricity: %f", oe.eccentricity);
     
     if (oe.eccentricity < 1.0) { // Ellipse
-        printf("DEBUG: Calling compute_orbital_lines_ellipse\n");
+        Debug("Calling compute_orbital_lines_ellipse");
         return compute_orbital_lines_ellipse(oe,rv);
     } else { // Parabolas / Hyperbolas
-        printf("DEBUG: Calling compute_orbital_lines_non_ellipse\n");
+        Debug("Calling compute_orbital_lines_non_ellipse");
         return compute_orbital_lines_non_ellipse(oe,rv,grav_param,t,max_render_distance);
     }
 }

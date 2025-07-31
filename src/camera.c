@@ -8,8 +8,8 @@
 #define CAMERA_ETA 0.01
 #define MOUSE_SENSITIVITY 0.003f
 #define TRACKPAD_SENSITIVITY 0.001f
-#define ZOOM_SENSITIVITY 0.8f
-#define TRACKPAD_ZOOM_SENSITIVITY 0.3f
+#define ZOOM_SENSITIVITY 0.3f
+#define TRACKPAD_ZOOM_SENSITIVITY 0.1f
 
 // Trackpad gesture detection
 static float last_zoom_time = 0.0f;
