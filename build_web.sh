@@ -39,7 +39,7 @@ emcc \
     ../src/utils/rlutil.c \
     ../src/camera.c \
     raylib-5.5_webassembly/lib/libraylib.a \
-    -o c_orbit_web.html \
+    -o index.html \
     --shell-file ../web_shell.html \
     -I../src -I../src/physics -I../src/tree -I../src/utils \
     -Iraylib-5.5_webassembly/include \
