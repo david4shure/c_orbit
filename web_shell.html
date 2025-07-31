@@ -10,26 +10,10 @@
             width: 100%;
             height: 100%;
             background-color: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             font-family: Arial, sans-serif;
+            overflow: hidden;
         }
-        #canvas-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-        #canvas {
-            border: none;
-            background-color: #000;
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-        }
+        
         #loading {
             position: absolute;
             top: 50%;
@@ -37,28 +21,19 @@
             transform: translate(-50%, -50%);
             color: white;
             font-size: 18px;
-            z-index: 10;
+            z-index: 1000;
         }
-        #controls {
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            color: white;
-            text-align: right;
-            font-size: 12px;
-            background-color: rgba(0, 0, 0, 0.7);
-            padding: 10px;
-            border-radius: 5px;
-            z-index: 100;
+        
+        #canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
         }
     </style>
 </head>
 <body>
-    <div id="canvas-container">
-        <div id="loading">Loading C Orbit...</div>
-        <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
-
-    </div>
+    <div id="loading">Loading C Orbit...</div>
+    <canvas id="canvas" oncontextmenu="event.preventDefault()"></canvas>
     <script type='text/javascript'>
         var Module = {
             onRuntimeInitialized: function() {
@@ -66,20 +41,21 @@
             },
             canvas: (function() {
                 var canvas = document.getElementById('canvas');
-                // Set very high resolution canvas
-                var pixelRatio = Math.max(window.devicePixelRatio || 1, 2); // Use at least 2x resolution
-                canvas.width = window.innerWidth * pixelRatio;
-                canvas.height = window.innerHeight * pixelRatio;
-                canvas.style.width = window.innerWidth + 'px';
-                canvas.style.height = window.innerHeight + 'px';
-                // Handle window resize
-                window.addEventListener('resize', function() {
-                    var pixelRatio = Math.max(window.devicePixelRatio || 1, 2);
-                    canvas.width = window.innerWidth * pixelRatio;
-                    canvas.height = window.innerHeight * pixelRatio;
-                    canvas.style.width = window.innerWidth + 'px';
-                    canvas.style.height = window.innerHeight + 'px';
-                });
+                
+                // Only monitor for dev console changes and let Emscripten handle everything else
+                var lastWidth = window.innerWidth;
+                var lastHeight = window.innerHeight;
+                
+                setInterval(function() {
+                    if (window.innerWidth !== lastWidth || window.innerHeight !== lastHeight) {
+                        lastWidth = window.innerWidth;
+                        lastHeight = window.innerHeight;
+                        
+                        // Just dispatch a resize event - let Emscripten handle the canvas
+                        window.dispatchEvent(new Event('resize'));
+                    }
+                }, 250);
+                
                 return canvas;
             })()
         };
