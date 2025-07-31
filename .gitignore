@@ -42,7 +42,7 @@ Thumbs.db
 # Raylib Cache
 *.rlmeta
 raylib-5.5_webassembly/*
-build_web/raylib-5.5_webassembly/*
+docs/raylib-5.5_webassembly/*
 
 # Other Cached Files
 .cache/

@@ -3,8 +3,8 @@
 echo "Building C Orbit Web Version..."
 
 # Create build directory
-mkdir -p build_web
-cd build_web
+mkdir -p docs
+cd docs
 
 # Download and setup raylib webassembly if not already present
 if [ ! -d "raylib-5.5_webassembly" ]; then
@@ -55,7 +55,7 @@ emcc \
 
 if [ $? -eq 0 ]; then
     echo "✅ Build successful!"
-    echo "Open build_web/c_orbit_web.html in a web browser."
+    echo "Open docs/index.html in a web browser."
     echo "Note: You'll need to serve the files from a web server due to CORS restrictions."
     echo "You can use: python3 -m http.server 8000"
 else
