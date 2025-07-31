@@ -1,6 +1,7 @@
 #include "kepler.h"
 #include "corbit_math.h"
 #include <math.h>
+#include <stdio.h>
 #include "constants.h"
 #include "../utils/logger.h"
 #include "assert.h"
@@ -145,7 +146,7 @@ double stump_s(double z) {
     else return (sinh(sqrt(-z)) - sqrt(-z)) / sqrt((-z) * (-z) * (-z));
 }
 
-double clampf(double x, double min, double max) {
+double clampd(double x, double min, double max) {
     if (x < min) {
         return min;
     } else if (x > max) {
@@ -222,7 +223,7 @@ ClassicalOrbitalElements rv_to_classical_elements(PhysicalState rv, double grav_
    DVector3 h_hat = DVector3Scale(H, 1.0/h);
 
    // Inclination is angle between H and Z axis
-   double i = acos(clampf(h_hat.z, -1.0, 1.0));
+   double i = acos(clampd(h_hat.z, -1.0, 1.0));
 
    // Node vector N = K × H
    DVector3 N = DVector3CrossProduct((DVector3){0, 0, 1}, H);
@@ -432,9 +433,6 @@ DVector3 solve_kepler_ellipse_perifocal(ClassicalOrbitalElements elems, double M
         mean_anomaly = mean_anomaly - 2 * D_PI;
     }
 
-
-    /* Debug("Computing for mean_anomaly = %.6f\n",mean_anomaly*D_RAD2DEG); */
-
     // Solve keplers eq MA -> E -> TA -> DIST -> (x,y,z)
     double eccentric_anomaly = solve_kepler_eq_ellipse(elems.eccentricity, mean_anomaly, 50);
     double true_anomaly = ecc_anom_to_true_anom(elems.eccentricity, eccentric_anomaly);
@@ -620,7 +618,8 @@ DVector3 inertial_coords_to_perifocal_coords(DVector3 eci, double long_of_asc_no
 
 DVector3 solve_kepler_ellipse_inertial(ClassicalOrbitalElements elems, double M_naught, double t_naught, double t) {
     DVector3 perifocal_coords = solve_kepler_ellipse_perifocal(elems, M_naught, t_naught, t);
-    return perifocal_coords_to_inertial_coords(perifocal_coords, elems.long_of_asc_node, elems.arg_of_periapsis, elems.inclination);
+    DVector3 result = perifocal_coords_to_inertial_coords(perifocal_coords, elems.long_of_asc_node, elems.arg_of_periapsis, elems.inclination);
+    return result;
 }
 
 double periapsis_distance(ClassicalOrbitalElements oe) {

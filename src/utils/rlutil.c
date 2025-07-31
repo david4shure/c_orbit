@@ -1,5 +1,6 @@
 #include <raylib.h>
 #include <rlgl.h>
+#include "rlutil.h"
 
 // Draw a grid centered at (0, 0, 0)
 void DrawGridOfColor(int slices, float spacing,Color color)
@@ -21,5 +22,11 @@ void DrawGridOfColor(int slices, float spacing,Color color)
             rlVertex3f((float)halfSlices*spacing, 0.0f, (float)i*spacing);
         }
     rlEnd();
+}
+
+float clampf(float x, float min, float max) {
+    if (x < min) return min;
+    if (x > max) return max;
+    return x;
 }
 

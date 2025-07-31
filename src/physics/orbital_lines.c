@@ -1,4 +1,5 @@
 #include "orbital_lines.h"
+#include <stdio.h>
 #include "../utils/darray.h"
 #include "../utils/logger.h"
 #include "assert.h"
@@ -10,11 +11,7 @@
 
 const int MAX_POINTS = 20000;
 
-double clampd(double value, double min, double max) {
-    if (value < min) return min;
-    if (value > max) return max;
-    return value;
-}
+
 
 double delta_t_from_velocity(double velocityMagnitude, double scalingFactor) {
     return scalingFactor / (velocityMagnitude * velocityMagnitude);  // Time step inversely proportional to velocity cube
@@ -25,10 +22,16 @@ double delta_t_from_velocity(double velocityMagnitude, double scalingFactor) {
 // NOTE: This function returns a dynamic array that is malloc'ed!!
 // It should be freed accordingly
 darray compute_orbital_lines(PhysicalState rv, double grav_param, float t, float max_render_distance) {
+    printf("DEBUG: compute_orbital_lines called with grav_param: %f, t: %f\n", grav_param, t);
+    printf("DEBUG: About to compute orbital elements\n");
     ClassicalOrbitalElements oe = rv_to_classical_elements(rv,grav_param);
+    printf("DEBUG: Orbital elements computed, eccentricity: %f\n", oe.eccentricity);
+    
     if (oe.eccentricity < 1.0) { // Ellipse
+        printf("DEBUG: Calling compute_orbital_lines_ellipse\n");
         return compute_orbital_lines_ellipse(oe,rv);
     } else { // Parabolas / Hyperbolas
+        printf("DEBUG: Calling compute_orbital_lines_non_ellipse\n");
         return compute_orbital_lines_non_ellipse(oe,rv,grav_param,t,max_render_distance);
     }
 }
@@ -88,8 +91,16 @@ darray compute_orbital_lines_non_ellipse(ClassicalOrbitalElements oe, PhysicalSt
 }
 
 darray compute_orbital_lines_ellipse(ClassicalOrbitalElements oe, PhysicalState rv) {
+    // Safety check for invalid orbital elements
+    if (isnan(oe.semimajor_axis) || isnan(oe.eccentricity) || isnan(oe.period) ||
+        isinf(oe.semimajor_axis) || isinf(oe.eccentricity) || isinf(oe.period) ||
+        oe.period <= 0.0 || oe.semimajor_axis <= 0.0) {
+        // Return empty array for invalid elements
+        return darray_init(10, sizeof(PointBundle));
+    }
+    
     // Loop through true anomaly by step size
-    darray arr = darray_init(1850, sizeof(PointBundle));
+    darray arr = darray_init(500, sizeof(PointBundle));
 
     // Scale delta T by distance to apoapsis
     float delta_t = 0.0;
@@ -102,6 +113,7 @@ darray compute_orbital_lines_ellipse(ClassicalOrbitalElements oe, PhysicalState 
     double r_a = oe.apoapsis_distance;
     
     while (true) {
+        
         // Make delta_t larger at apoapsis
         // Make delta_t smaller at periapsis
         DVector3 position = solve_kepler_ellipse_inertial(oe, 0.0, 0.0, time);
@@ -145,7 +157,9 @@ darray compute_orbital_lines_ellipse(ClassicalOrbitalElements oe, PhysicalState 
             .period = oe.period,
         };
 
-        // Push point to the darray
+
+
+        // Push point to the darray (store the object directly, not a pointer)
         arr = darray_push(arr,(void*)&bundle);
 
         time += delta_t;

@@ -16,7 +16,7 @@ darray compute_orbital_lines_ellipse(ClassicalOrbitalElements oe, PhysicalState 
 // Propagates only parabolic or hyperbolic orbits
 darray compute_orbital_lines_non_ellipse(ClassicalOrbitalElements oe, PhysicalState rv, double grav_param, float t, float max_distance);
 
-typedef struct {
+typedef struct __attribute__((aligned(8))) {
     DVector3 point;
     float time_at_point;
     float period;

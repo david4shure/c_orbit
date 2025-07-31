@@ -1,6 +1,7 @@
 #include "tree.h"
 #include "../physics/constants.h"
 #include <string.h>
+#include <stdio.h>
 #include "../utils/logger.h"
 #include "../physics/time.h"
 #include "../physics/orbital_lines.h"
@@ -27,6 +28,7 @@ OrbitalTreeNode* load_earth_moon_system() {
     earth->parent = NULL;
     earth->draw_sphere_of_influence = true;
     earth->body_color = SKYBLUE;
+    earth->orbital_lines = NULL; // Initialize orbital lines to NULL
     earth->children = darray_init(10,sizeof(OrbitalTreeNode**));
 
     PhysicalParameters moon_physical_parameters = (PhysicalParameters){
@@ -52,8 +54,9 @@ OrbitalTreeNode* load_earth_moon_system() {
     moon->parent = earth;
     moon->body_name = "Moon";
     moon->children = darray_init(1,sizeof(OrbitalTreeNode**));
-    moon->body_color = LIGHTGRAY;
-    moon->line_color = LIGHTGRAY;
+    moon->body_color = (Color){200, 200, 255, 255}; // Light blue
+    moon->line_color = (Color){100, 200, 255, 180}; // Bright blue with reduced opacity
+    moon->orbital_lines = NULL; // Initialize orbital lines to NULL
     earth->children = darray_push(earth->children, &moon);
 
     PhysicalParameters satellite_physical_parameters = (PhysicalParameters){
@@ -80,8 +83,9 @@ OrbitalTreeNode* load_earth_moon_system() {
     satellite->parent = moon;
     satellite->body_name = "Satellite";
     satellite->children = darray_init(1,sizeof(OrbitalTreeNode**));
-    satellite->body_color = ORANGE;
-    satellite->line_color = ORANGE;
+    satellite->body_color = (Color){255, 150, 0, 255}; // Bright orange
+    satellite->line_color = (Color){255, 200, 0, 180}; // Golden yellow with reduced opacity
+    satellite->orbital_lines = NULL; // Initialize orbital lines to NULL
     moon->children = darray_push(moon->children, &satellite);
 
     return earth;
@@ -90,31 +94,41 @@ OrbitalTreeNode* load_earth_moon_system() {
 // It is assumed that for every OrbitalTreeNode, its coordinates are relative to its 
 // parents
 void update_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock* clock) {
+    printf("DEBUG: update_orbital_tree_recursive called for node: %s\n", node->body_name);
     bool is_root_node = node->parent == NULL;
 
     if (!is_root_node) {
+        printf("DEBUG: Processing non-root node: %s\n", node->body_name);
         PhysicalState parent_state = node->parent->physical_state;
         PhysicalState current_state = node->physical_state;
 
+        printf("DEBUG: About to propagate orbital state\n");
         current_state = rv_from_r0v0(current_state, node->parent->physical_params.grav_param, clock->delta_seconds);
 
+        printf("DEBUG: About to compute orbital elements\n");
         node->orbital_elements = rv_to_classical_elements(current_state, node->parent->physical_params.grav_param);
 
         node->physical_state = current_state;
 
         if (node->orbital_lines != NULL) {
+            printf("DEBUG: Freeing old orbital lines\n");
             darray_free(node->orbital_lines);
             node->orbital_lines = NULL;
         }
 
+        printf("DEBUG: About to compute orbital lines for node: %s\n", node->body_name);
         node->orbital_lines = compute_orbital_lines(
             current_state,
             node->parent->physical_params.grav_param,
             clock->clock_seconds,
             node->parent->physical_params.sphere_of_influence * 5
         );
+        printf("DEBUG: Orbital lines computed for node: %s, count: %d\n", node->body_name, 
+               node->orbital_lines ? darray_length(node->orbital_lines) : -1);
 
+        printf("DEBUG: About to compute nodes\n");
         node->asc_desc = compute_nodes(node->orbital_elements);
+        printf("DEBUG: Nodes computed for node: %s\n", node->body_name);
     }
 
     for (int i = 0; i < darray_length(node->children) && node->children != NULL; i++) {
