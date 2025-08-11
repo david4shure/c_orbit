@@ -1,4 +1,5 @@
 # C Orbit is an orbital simulation written in C, using raylib
+<img width="2560" height="1235" alt="Screenshot 2025-08-11 at 2 03 53 PM" src="https://github.com/user-attachments/assets/92bb3e98-000a-4574-82b2-9f291bb64b7b" />
 
 # Narrated Demo
 
