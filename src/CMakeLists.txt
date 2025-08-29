@@ -7,7 +7,7 @@ add_subdirectory(utils)
 add_executable(c_orbit main.c camera.c)
 
 # Link libraries
-target_link_libraries(c_orbit PRIVATE physics tree utils raylib)
+target_link_libraries(c_orbit PRIVATE tree physics utils raylib)
 
 # Include directories for main executable
 target_include_directories(c_orbit PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
