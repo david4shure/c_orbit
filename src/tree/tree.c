@@ -94,41 +94,31 @@ OrbitalTreeNode* load_earth_moon_system() {
 // It is assumed that for every OrbitalTreeNode, its coordinates are relative to its 
 // parents
 void update_orbital_tree_recursive(OrbitalTreeNode* root, OrbitalTreeNode* node, PhysicsTimeClock* clock) {
-    Debug("update_orbital_tree_recursive called for node: %s", node->body_name);
     bool is_root_node = node->parent == NULL;
 
     if (!is_root_node) {
-        Debug("Processing non-root node: %s", node->body_name);
         PhysicalState parent_state = node->parent->physical_state;
         PhysicalState current_state = node->physical_state;
 
-        Debug("About to propagate orbital state");
         current_state = rv_from_r0v0(current_state, node->parent->physical_params.grav_param, clock->delta_seconds);
 
-        Debug("About to compute orbital elements");
         node->orbital_elements = rv_to_classical_elements(current_state, node->parent->physical_params.grav_param);
 
         node->physical_state = current_state;
 
         if (node->orbital_lines != NULL) {
-            Debug("Freeing old orbital lines");
             darray_free(node->orbital_lines);
             node->orbital_lines = NULL;
         }
 
-        Debug("About to compute orbital lines for node: %s", node->body_name);
         node->orbital_lines = compute_orbital_lines(
             current_state,
             node->parent->physical_params.grav_param,
             clock->clock_seconds,
             node->parent->physical_params.sphere_of_influence * 5
         );
-        Debug("Orbital lines computed for node: %s, count: %d", node->body_name, 
-               node->orbital_lines ? darray_length(node->orbital_lines) : -1);
 
-        Debug("About to compute nodes");
         node->asc_desc = compute_nodes(node->orbital_elements);
-        Debug("Nodes computed for node: %s", node->body_name);
     }
 
     for (int i = 0; i < darray_length(node->children) && node->children != NULL; i++) {
